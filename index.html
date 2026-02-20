@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบทะเบียนศิษย์เก่า - Alumni Relations (Supabase)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+        .glass-morphism { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .page-transition { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Loading Indicator -->
+    <div id="loader" class="fixed inset-0 z-[200] hidden items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div class="flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="mt-4 font-bold text-blue-600 tracking-wide text-sm">กำลังประมวลผลข้อมูล...</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3 cursor-pointer shrink-0" onclick="showView('home')">
+                    <div id="nav-logo-container" class="bg-blue-600 p-2 rounded-lg overflow-hidden flex items-center justify-center h-9 w-9">
+                        <svg id="nav-default-icon" class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
+                        <img id="nav-custom-logo" src="" class="w-full h-full object-cover hidden" alt="Logo">
+                    </div>
+                    <span id="nav-site-name" class="text-lg font-bold text-slate-900 hidden lg:block tracking-tight">ทะเบียนศิษย์เก่า</span>
+                </div>
+
+                <div class="hidden md:flex items-center justify-end flex-grow ml-4 space-x-1 lg:space-x-2">
+                    <button onclick="showView('home')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">หน้าแรก</button>
+                    <button onclick="showView('register')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">ลงทะเบียน</button>
+                    <button onclick="showView('news')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">ข่าวสาร</button>
+                    <button onclick="showView('job-board')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">กระดานงาน</button>
+
+                    <div class="h-5 w-[1px] bg-slate-200 mx-2"></div> <div id="alumni-nav-section" class="flex items-center">
+                        <button id="alumni-login-btn" onclick="showView('alumni-login')" class="text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full font-bold hover:bg-blue-100 transition text-sm border border-blue-100">
+                            เข้าสู่ระบบ
+                        </button>
+                        <div id="alumni-profile-btn" class="hidden flex items-center gap-2">
+                            <button onclick="showView('alumni-profile')" class="flex items-center gap-2 bg-white border border-slate-200 pr-3 pl-1.5 py-1 rounded-full hover:bg-slate-50 transition shadow-sm">
+                                <div id="nav-alumni-avatar" class="w-7 h-7 rounded-full bg-slate-200 overflow-hidden border"></div>
+                                <span id="nav-alumni-name" class="text-xs font-bold text-slate-700 max-w-[80px] truncate"></span>
+                            </button>
+                            <button onclick="logoutAlumni()" class="text-slate-400 hover:text-red-500 transition p-1" title="ออกจากระบบ">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="staff-entry-btn" onclick="showView('staff-login')" class="text-slate-400 hover:text-slate-600 text-xs font-medium ml-2">เจ้าหน้าที่</button>
+                    <div id="staff-profile" class="hidden flex items-center gap-2 ml-2">
+                        <button onclick="showView('admin-dashboard')" class="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition shadow-sm border border-purple-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                            Dashboard <span class="hidden lg:inline">(<span id="staff-name"></span>)</span>
+                        </button>
+                        <button onclick="logout()" class="text-xs font-bold text-red-400 hover:text-red-600 p-1">ออก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="main-content" class="flex-grow max-w-7xl mx-auto p-4 md:p-8 w-full"></main>
+
+    <!-- Footer -->
+    <footer id="contact-footer" class="bg-slate-900 text-white mt-auto py-12 hidden relative group">
+        <div id="footer-admin-tools" class="absolute top-4 right-4 hidden">
+            <button onclick="openEditFooterModal()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white flex items-center gap-2 transition border border-white/10">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                แก้ไขข้อมูลเว็บ
+            </button>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-8">
+            <div>
+                <h2 class="text-2xl font-bold mb-4 tracking-tight">ติดต่อคณะบริหารธุรกิจ</h2>
+                <p id="footer-org-name" class="text-slate-400 mb-2 font-medium text-lg">สถาบันการจัดการปัญญาภิวัฒน์</p>
+                <p class="text-slate-400">โทร: <span id="footer-phone">02-855-0000</span></p>
+                <p class="text-slate-400">อีเมล: <span id="footer-email">contact@pim.ac.th</span></p>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">ส่งข้อความถึงเรา</h3>
+                <form id="public-contact-form" onsubmit="handleContact(event)" class="space-y-3">
+                    <input type="text" name="name" placeholder="ชื่อของคุณ" required class="w-full bg-slate-800 border-none rounded-lg px-4 py-2 text-white placeholder-slate-500 outline-none">
+                    <input type="email" name="email" placeholder="อีเมลติดต่อกลับ" required class="w-full bg-slate-800 border-none rounded-lg px-4 py-2 text-white placeholder-slate-500 outline-none">
+                    <textarea name="message" placeholder="ข้อความ..." required class="w-full bg-slate-800 border-none rounded-lg px-4 py-2 text-white placeholder-slate-500 h-20 outline-none"></textarea>
+                    <button type="submit" class="bg-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">ส่งข้อความ</button>
+                </form>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm">
+
+        <!-- View Modal -->
+        <div id="view-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto hidden">
+            <div class="p-8">
+                <div class="flex justify-between items-start mb-6">
+                    <h2 id="view-modal-title" class="text-2xl font-bold text-slate-800">รายละเอียด</h2>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+                <div id="view-content" class="space-y-6"></div>
+            </div>
+        </div>
+
+        <!-- Edit Alumni Modal (Admin) -->
+        <div id="edit-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto hidden">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800 tracking-tight">แก้ไขข้อมูลศิษย์เก่า (Admin)</h2>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+                <form id="edit-form" onsubmit="handleAdminEditSave(event)" class="space-y-6">
+                    <div id="edit-form-content" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg transition">บันทึกการเปลี่ยนแปลง</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal (Alumni Self-Edit) -->
+        <div id="alumni-edit-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto hidden">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800 tracking-tight">แก้ไขข้อมูลส่วนตัว</h2>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+                <form id="alumni-edit-form" onsubmit="handleSelfEditSave(event)" class="space-y-6">
+                    <div id="alumni-edit-form-content" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg transition">บันทึกการเปลี่ยนแปลง</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Staff Modal -->
+        <div id="add-staff-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-md hidden">
+            <div class="bg-purple-600 p-6 text-white flex justify-between items-center">
+                <h2 class="text-xl font-bold">เพิ่มเจ้าหน้าที่ใหม่</h2>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <form onsubmit="handleAddStaff(event)" class="p-8 space-y-4">
+                <input type="text" name="name" placeholder="ชื่อ-นามสกุล" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500">
+                <input type="email" name="email" placeholder="อีเมล" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500">
+                <input type="password" name="password" placeholder="รหัสผ่าน" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500">
+                <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700">บันทึกข้อมูล</button>
+            </form>
+        </div>
+		<div id="add-job-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-lg hidden overflow-hidden">
+            <div class="bg-indigo-600 p-5 text-white flex justify-between items-center">
+                <h2 id="job-modal-title" class="text-xl font-bold tracking-tight">เพิ่มประกาศใหม่</h2>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <form onsubmit="handleSaveJob(event)" id="job-form" class="p-8 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <input type="hidden" name="id" id="job-id">
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">ประเภทประกาศ</label>
+                    <select name="type" id="job-type" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="promo">โปรโมทธุรกิจ / บริการ</option>
+                        <option value="job">ประกาศรับสมัครงาน</option>
+                    </select>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">ลิงก์รูปภาพ / แบนเนอร์ (ถ้ามี)</label><input type="url" name="image" id="job-image" placeholder="https://..." class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">หัวข้อประกาศ</label><input type="text" name="title" id="job-title" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">รายละเอียด</label><textarea name="description" id="job-desc" required class="w-full border rounded-xl px-4 py-3 h-32 outline-none focus:ring-2 focus:ring-indigo-500"></textarea></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">ข้อมูลติดต่อ (เบอร์/Line/Email)</label><input type="text" name="contact" id="job-contact" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                <div class="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">* ประกาศจะแสดงผลเมื่อได้รับการอนุมัติ (แอดมินอนุมัติอัตโนมัติ)</div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">บันทึกประกาศ</button>
+            </form>
+        </div>
+
+        <!-- Add/Edit News Modal -->
+        <div id="add-news-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-lg hidden overflow-hidden">
+            <div class="bg-green-600 p-5 text-white flex justify-between items-center">
+                <h2 id="news-modal-title" class="text-xl font-bold tracking-tight">ประกาศข่าวสารใหม่ (PR)</h2>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <form onsubmit="handleSaveNews(event)" id="news-form" class="p-8 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <input type="hidden" name="id">
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">หัวข้อข่าว</label><input type="text" name="title" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">รายละเอียด</label><textarea name="content" required class="w-full border rounded-xl px-4 py-3 h-32 outline-none focus:ring-2 focus:ring-green-500"></textarea></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">วันที่จัดงาน/เริ่ม</label><input type="date" name="date" required class="w-full border rounded-xl px-4 py-3 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">วันที่สิ้นสุด</label><input type="date" name="end_date" class="w-full border rounded-xl px-4 py-3 outline-none"></div>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">URL รูปภาพ</label><input type="url" name="image" placeholder="https://..." class="w-full border rounded-xl px-4 py-3 outline-none"></div>
+                <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer transition hover:bg-slate-100">
+                    <input type="checkbox" name="showOnHome" class="w-5 h-5 rounded text-green-600 focus:ring-green-500">
+                    <span class="text-sm font-bold text-slate-700">แสดงข่าวบนหน้าหลัก</span>
+                </label>
+                <button type="submit" id="news-modal-btn" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition">ยืนยันการบันทึก</button>
+            </form>
+        </div>
+
+        <!-- Edit Footer/Site Info Modal -->
+        <div id="edit-footer-modal" class="bg-white rounded-3xl shadow-2xl w-full max-w-lg hidden overflow-hidden">
+            <div class="bg-slate-800 p-6 text-white flex justify-between items-center">
+                <h2 class="text-xl font-bold">แก้ไขข้อมูลเว็บ & นโยบาย PDPA</h2>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <form onsubmit="handleSaveSiteConfig(event)" class="p-8 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">ชื่อระบบ</label><input type="text" id="conf-site-name" placeholder="ชื่อระบบ" class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">URL โลโก้</label><input type="url" id="conf-logo-url" placeholder="URL โลโก้" class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">ชื่อหน่วยงาน</label><input type="text" id="conf-org-name" placeholder="ชื่อหน่วยงาน" class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-500"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">เบอร์โทร</label><input type="text" id="conf-phone" placeholder="เบอร์โทร" class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-500"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">อีเมล</label><input type="text" id="conf-email" placeholder="อีเมล" class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-500"></div>
+                </div>
+                <div><label class="text-xs font-bold text-blue-600 mb-1 block mt-2">ข้อความนโยบาย PDPA (แสดงหน้าลงทะเบียน)</label><textarea id="conf-pdpa" class="w-full border rounded-xl px-4 py-3 h-32 outline-none focus:ring-2 focus:ring-blue-500" placeholder="ระบุข้อความ PDPA..."></textarea></div>
+                <button type="submit" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold hover:bg-slate-900 shadow-md transition mt-2">บันทึกข้อมูล</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpbnJ0cGxsZ2VxaWdjbWVuZ2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzE0MTAsImV4cCI6MjA4NTMwNzQxMH0.MBmL2GclUsgX2yBn4DNp58cun1G9Vb9N08_UTtT4giI';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let alumniData = [];
+        let staffUsers = [];
+        let newsList = [];
+        let contactMessages = [];
+		let jobList = [];
+        let currentUser = null;
+        let currentAlumni = null;
+        let chartInstances = {};
+        let currentBase64Image = null;
+        let currentSelectedFile = null;
+		let currentPage = 1;
+        const itemsPerPage = 50;
+        let filteredAlumniData = [];
+		let dirCurrentPage = 1;
+        const dirItemsPerPage = 21;
+        let dirFilteredData = [];
+
+        // Default Config
+        let siteConfig = {
+            orgName: 'สถาบันการจัดการปัญญาภิวัฒน์',
+            phone: '02-855-0000',
+            email: 'contact@pim.ac.th',
+            siteName: 'ทะเบียนศิษย์เก่า IMM/CIMM',
+            logoUrl: '',
+            pdpaText: 'ยินยอมให้คณะเก็บรวบรวมและใช้ข้อมูลส่วนบุคคลเพื่อการติดต่อสื่อสาร ประชาสัมพันธ์กิจกรรม งานคืนสู่เหย้า และการสำรวจข้อมูลสถิติเพื่อพัฒนาคณะฯ ข้อมูลของท่านจะถูกเก็บเป็นความลับและไม่เปิดเผยต่อภายนอกโดยไม่ได้รับอนุญาต'
+        };
+
+        const centerOptions = `
+            <option value="">-- เลือกศูนย์ --</option>
+            <option value="NB ศูนย์การเรียนรู้จังหวัดนนทบุรี">NB นนทบุรี</option>
+            <option value="CB ศูนย์การเรียนรู้จังหวัดชลบุรี">CB ชลบุรี</option>
+            <option value="CM ศูนย์การเรียนรู้จังหวัดเชียงใหม่">CM เชียงใหม่</option>
+            <option value="NS ศูนย์การเรียนรู้จังหวัดนครสวรรค์">NS นครสวรรค์</option>
+            <option value="KK ศูนย์การเรียนรู้จังหวัดขอนแก่น">KK ขอนแก่น</option>
+            <option value="UT ศูนย์การเรียนรู้จังหวัดอุดรธานี">UT อุดรธานี</option>
+            <option value="NR ศูนย์การเรียนรู้จังหวัดนครราชสีมา">NR นครราชสีมา</option>
+            <option value="AY ศูนย์การเรียนรู้จังหวัดอยุธยา">AY อยุธยา</option>
+            <option value="LP ศูนย์การเรียนรู้จังหวัดลำปาง">LP ลำปาง</option>
+            <option value="SK ศูนย์การเรียนรู้จังหวัดสงขลา">SK สงขลา</option>
+            <option value="ST ศูนย์การเรียนรู้จังหวัดสุราษฎร์ธานี">ST สุราษฎร์ธานี</option>
+            <option value="SP ศูนย์การเรียนรู้จังหวัดสมุทรปราการ">SP สมุทรปราการ</option>
+            <option value="PB ศูนย์การเรียนรู้จังหวัดเพชรบุรี">PB เพชรบุรี</option>`;
+
+        const courseOptions = `
+            <option value="">-- เลือกหลักสูตร --</option>
+            <option value="IMM">IMM</option>
+            <option value="DMTM">DMTM</option>
+            <option value="CIMM (ต่อเนื่อง)">CIMM (ต่อเนื่อง)</option>`;
+
+        const positionOptions = `
+            <option value="">-- เลือกตำแหน่ง/อาชีพ --</option>
+            <option value="ข้าราชการ/พนักงานของรัฐ">ข้าราชการ/พนักงานของรัฐ</option>
+            <option value="พนักงานบริษัทเอกชน">พนักงานบริษัทเอกชน</option>
+            <option value="เจ้าของธุรกิจ/ธุรกิจส่วนตัว">เจ้าของธุรกิจ/ธุรกิจส่วนตัว</option>
+            <option value="อาชีพอิสระ (Freelance)">อาชีพอิสระ (Freelance)</option>
+            <option value="พนักงานรัฐวิสาหกิจ">พนักงานรัฐวิสาหกิจ</option>
+            <option value="อื่นๆ">อื่นๆ</option>`;
+
+        window.onload = async () => {
+            await syncData();
+            await fetchSiteSettings();
+            const savedAlumniId = localStorage.getItem('current_alumni_id');
+            if (savedAlumniId) {
+                currentAlumni = alumniData.find(a => a.id == savedAlumniId);
+                updateAlumniNav();
+            }
+            const savedStaffId = localStorage.getItem('current_staff_id');
+            if (savedStaffId) {
+                const foundStaff = staffUsers.find(u => u.id == savedStaffId);
+                if (foundStaff && foundStaff.status === 'active') {
+                    currentUser = foundStaff;
+                    updateStaffNav();
+                } else {
+                    localStorage.removeItem('current_staff_id');
+                }
+            }
+            showView('home');
+        };
+
+        async function syncData() {
+            setLoading(true);
+            try {
+                const { data: alumni } = await supabaseClient.from('alumni').select('*');
+                alumniData = alumni || [];
+
+                const { data: staff } = await supabaseClient.from('staff').select('*');
+                staffUsers = staff || [];
+
+                const { data: news } = await supabaseClient.from('news').select('*').order('date', { ascending: false });
+                newsList = news || [];
+
+                const { data: msgs } = await supabaseClient.from('contacts').select('*').order('created_at', { ascending: false });
+                contactMessages = msgs || [];
+				
+				const { data: jobs } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
+                jobList = jobs || [];
+            } catch (err) { console.warn(err); } finally { setLoading(false); }
+        }
+
+        async function fetchSiteSettings() {
+            try {
+                const { data } = await supabaseClient.from('site_settings').select('*').limit(1).single();
+                if (data) {
+                    siteConfig = { 
+                        siteName: data.site_name, 
+                        logoUrl: data.logo_url, 
+                        orgName: data.org_name, 
+                        phone: data.phone, 
+                        email: data.email,
+                        pdpaText: data.pdpa_text || siteConfig.pdpaText
+                    };
+                    loadSiteSettings();
+                }
+            } catch (err) { }
+        }
+
+        async function handleContact(event) {
+    event.preventDefault();
+    const form = event.target;
+    const payload = Object.fromEntries(new FormData(form));
+
+    setLoading(true);
+    try {
+        const { error } = await supabaseClient.from('contacts').insert([payload]);
+        if (error) throw error;
+
+        showMessage('ส่งข้อความสำเร็จ! เราจะติดต่อกลับโดยเร็วที่สุด', 'success');
+        form.reset(); // ล้างข้อมูลในฟอร์มหลังส่งสำเร็จ
+        await syncData(); // อัปเดตข้อมูลกล่องข้อความให้แอดมินเห็นทันที
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+        function handleFileSelect(event, previewId) {
+            const file = event.target.files[0];
+            const previewContainer = document.getElementById(previewId);
+            const previewImg = previewContainer.querySelector('img');
+            const placeholder = previewContainer.querySelector('.photo-placeholder') || previewContainer.querySelector('svg');
+
+            if (file) {
+                if (file.size > 800 * 1024) {
+                    showMessage('ขนาดไฟล์ห้ามเกิน 800 KB', 'error');
+                    event.target.value = '';
+                    return;
+                }
+
+                currentSelectedFile = file; // เก็บไฟล์ไว้เพื่อรออัปโหลด
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentBase64Image = e.target.result; // ยังเก็บไว้เผื่อใช้เป็น Fallback
+                    previewImg.src = e.target.result;
+                    previewImg.classList.remove('hidden');
+                    if (placeholder) placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ฟังก์ชันใหม่: ย่อรูปและบีบอัดก่อนอัปโหลด (รองรับคนหลักหมื่น)
+        async function compressAndUploadImage(file) {
+            if (!file) return null;
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = async () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        const MAX_WIDTH = 500;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        canvas.toBlob(async (blob) => {
+                            if (!blob) return reject(new Error('บีบอัดรูปภาพล้มเหลว'));
+
+                            const fileExt = 'jpg';
+                            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+                            try {
+                                const { data, error } = await supabaseClient.storage.from('profiles').upload(fileName, blob, {
+                                    contentType: 'image/jpeg'
+                                });
+                                if (error) throw error;
+                                const { data: publicUrlData } = supabaseClient.storage.from('profiles').getPublicUrl(fileName);
+                                resolve(publicUrlData.publicUrl);
+                            } catch (err) {
+                                reject(new Error('อัปโหลดรูปภาพไม่สำเร็จ: ' + err.message));
+                            }
+                        }, 'image/jpeg', 0.7);
+                    };
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        function showView(viewId) {
+            const main = document.getElementById('main-content');
+            const footer = document.getElementById('contact-footer');
+            main.innerHTML = `<div class="flex items-center justify-center h-64 animate-pulse text-slate-400">กำลังโหลด...</div>`;
+
+            if (viewId === 'home') footer.classList.remove('hidden');
+            else footer.classList.add('hidden');
+
+            setTimeout(() => {
+                if (viewId === 'home') renderHome();
+                else if (viewId === 'register') renderRegister();
+                else if (viewId === 'alumni-login') renderAlumniLogin();
+                else if (viewId === 'alumni-profile') renderAlumniProfile();
+                else if (viewId === 'alumni-directory') renderAlumniDirectory();
+                else if (viewId === 'staff-login') renderStaffLogin();
+                else if (viewId === 'staff-register') renderStaffRegister();
+                else if (viewId === 'admin-dashboard') renderAdminDashboard();
+                else if (viewId === 'admin-list') renderAdminList();
+                else if (viewId === 'super-admin-panel') renderSuperAdmin();
+                else if (viewId === 'news') renderNews();
+                else if (viewId === 'admin-news') renderAdminNews();
+                else if (viewId === 'admin-messages') renderAdminMessages();
+				else if (viewId === 'job-board') renderJobBoard();
+                else if (viewId === 'admin-jobs') renderAdminJobs();
+
+                checkPermissions(viewId);
+                window.scrollTo(0, 0);
+            }, 50);
+        }
+
+        function checkPermissions(viewId) {
+            const adminViews = ['admin-dashboard', 'admin-list', 'super-admin-panel', 'admin-news', 'admin-messages', 'admin-jobs'];
+            if (adminViews.includes(viewId) && !currentUser) {
+                showView('staff-login');
+                showMessage('กรุณาเข้าสู่ระบบเจ้าหน้าที่', 'error');
+            }
+            const footerEditBtn = document.getElementById('footer-admin-tools');
+            if (footerEditBtn) {
+                footerEditBtn.classList.toggle('hidden', currentUser?.role !== 'super-admin');
+            }
+        }
+
+        function loadSiteSettings() {
+            document.getElementById('nav-site-name').innerText = siteConfig.siteName;
+            if (siteConfig.logoUrl) {
+                document.getElementById('nav-default-icon').classList.add('hidden');
+                document.getElementById('nav-custom-logo').src = siteConfig.logoUrl;
+                document.getElementById('nav-custom-logo').classList.remove('hidden');
+            }
+            document.getElementById('footer-org-name').innerText = siteConfig.orgName;
+            document.getElementById('footer-phone').innerText = siteConfig.phone;
+            document.getElementById('footer-email').innerText = siteConfig.email;
+        }
+
+        function formatNewsDate(start, end) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            const d1 = new Date(start).toLocaleDateString('th-TH', options);
+            if (end && end !== start) {
+                const d2 = new Date(end).toLocaleDateString('th-TH', options);
+                return `${d1} - ${d2}`;
+            }
+            return d1;
+        }
+
+        // --- Render Functions ---
+        function renderHome() {
+            const pinnedNews = newsList.filter(n => n.showOnHome);
+            document.getElementById('main-content').innerHTML = `
+                <section class="text-center py-20 flex flex-col items-center">
+                    <h1 class="text-5xl font-bold mb-6 tracking-tight">ยินดีต้อนรับศิษย์เก่า</h1>
+                    <div class="flex gap-4">
+                        <button onclick="showView('alumni-login')" class="bg-blue-600 text-white px-8 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition">เข้าสู่ระบบ</button>
+                        <button onclick="showView('register')" class="border border-slate-300 px-8 py-3 rounded-xl hover:bg-slate-50 transition">ลงทะเบียน</button>
+                    </div>
+                    ${pinnedNews.length > 0 ? `<div class="mt-20 grid md:grid-cols-3 gap-6 text-left max-w-6xl w-full px-4">
+                        ${pinnedNews.map(n => `
+                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition group" onclick="viewNewsDetails(${n.id})">
+                            <div class="h-44 overflow-hidden"><img src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'"></div>
+                            <div class="p-6">
+                                <p class="text-xs text-blue-600 font-bold mb-1">${formatNewsDate(n.date, n.end_date)}</p>
+                                <h3 class="font-bold text-lg mb-2 line-clamp-1">${n.title}</h3>
+                                <p class="text-slate-500 text-sm line-clamp-2">${n.content}</p>
+                            </div>
+                        </div>`).join('')}
+                    </div>` : ''}
+                </section>`;
+        }
+
+        function renderRegister() {
+            currentBase64Image = null;
+            document.getElementById('main-content').innerHTML = `
+                <section class="max-w-4xl mx-auto page-transition bg-white rounded-3xl shadow-xl overflow-hidden border">
+                    <div class="bg-blue-600 p-8 text-white"><h2 class="text-2xl font-bold tracking-tight">ลงทะเบียนศิษย์เก่า</h2><p class="opacity-80">กรุณากรอกข้อมูลให้ครบถ้วนเพื่อเชื่อมต่อเครือข่าย</p></div>
+                    <form id="reg-form" class="p-8 space-y-8">
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-blue-100">
+                            <h3 class="text-lg font-bold text-blue-800 mb-2">นโยบายคุ้มครองข้อมูลส่วนบุคคล (PDPA)</h3>
+                            <div class="text-xs text-slate-500 mb-4 h-32 overflow-y-auto custom-scrollbar p-4 bg-white rounded-xl border border-slate-200 leading-relaxed">
+                                <p class="mb-2 font-bold text-slate-700">ความยินยอมในการเก็บรวบรวมข้อมูล:</p>
+                                <div class="whitespace-pre-wrap text-slate-600">${siteConfig.pdpaText}</div>
+                            </div>
+                            <label class="flex items-center gap-2 font-medium cursor-pointer"><input type="checkbox" required class="w-5 h-5 rounded text-blue-600"> <span class="text-slate-700">ยอมรับนโยบาย PDPA</span></label>
+                        </div>
+                        <div class="grid md:grid-cols-4 gap-8 items-start">
+                            <div class="md:col-span-1 text-center">
+                                <label class="text-xs font-bold text-slate-500 block mb-2 uppercase tracking-widest">รูปประจำตัว</label>
+                                <div id="reg-photo-preview" class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative group">
+                                    <img src="" class="w-full h-full object-cover hidden">
+                                    <div class="text-slate-400 text-center p-4 photo-placeholder">
+                                        <svg class="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/></svg>
+                                        <span class="text-[10px]">เลือกรูป<br>(ไม่เกิน 800KB)</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="reg-p-input" class="hidden" accept="image/*" onchange="handleFileSelect(event, 'reg-photo-preview')">
+                                <button type="button" onclick="document.getElementById('reg-p-input').click()" class="w-full mt-2 text-xs font-bold text-blue-600 py-2 border rounded-lg hover:bg-blue-50 transition">เลือกรูป</button>
+                            </div>
+                            <div class="md:col-span-3 grid md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-slate-500">ศูนย์การเรียนรู้</label><select name="center" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500">${centerOptions}</select></div>
+                                <div><label class="text-xs font-bold text-slate-500">รหัสนักศึกษา (10 หลัก)</label><input type="text" name="studentId" required maxlength="10" class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500" placeholder="6XXXXXXX-X"></div>
+                                <div><label class="text-xs font-bold text-slate-500">ปีที่จบ (พ.ศ.)</label><input type="number" name="gradYear" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500" placeholder="25XX"></div>
+                                <div><label class="text-xs font-bold text-slate-500">หลักสูตร</label><select name="course" class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500">${courseOptions}</select></div>
+                                <div class="md:col-span-2"><label class="text-xs font-bold text-blue-600">อาจารย์ที่ปรึกษา</label><input name="advisor" required class="w-full border border-blue-200 bg-blue-50 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500" placeholder="ระบุชื่ออาจารย์"></div>
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-4 gap-4 border-t pt-8">
+                            <div><label class="text-xs font-bold text-slate-500">คำนำหน้า</label><select name="prefix" class="w-full border rounded-xl p-2.5"><option>นาย</option><option>นาง</option><option>นางสาว</option></select></div>
+                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500">ชื่อ-นามสกุล</label><input type="text" name="fullName" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                            <div><label class="text-xs font-bold text-slate-500">ชื่อเล่น</label><input type="text" name="nickname" class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500">เบอร์โทรศัพท์</label><input name="phone" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500">อีเมล</label><input name="email" type="email" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 grid md:grid-cols-3 gap-4">
+                             <div class="md:col-span-3 font-bold text-blue-800">ข้อมูลการทำงานปัจจุบัน</div>
+                             <div><label class="text-xs font-bold text-slate-500">อาชีพ/สายงาน</label><select name="job" required class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500">${positionOptions}</select></div>
+                             <div><label class="text-xs font-bold text-slate-500">ตำแหน่งระบุ</label><input name="position" class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                             <div><label class="text-xs font-bold text-slate-500">หน่วยงาน/บริษัท</label><input name="company" class="w-full border rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                             <div class="md:col-span-3"><label class="text-xs font-bold text-slate-500">ที่อยู่ปัจจุบัน</label><textarea name="address" class="w-full border rounded-xl p-2.5 h-16 outline-none focus:ring-2 focus:ring-blue-500"></textarea></div>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 shadow-xl transition transform active:scale-95">ยืนยันการลงทะเบียน</button>
+                    </form>
+                </section>`;
+            document.getElementById('reg-form').onsubmit = handleRegister;
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const payload = Object.fromEntries(new FormData(e.target));
+
+            setLoading(true);
+            try {
+                // เรียกใช้ฟังก์ชันบีบอัดและอัปโหลดรูปภาพ
+                if (currentSelectedFile) {
+                    const imageUrl = await compressAndUploadImage(currentSelectedFile);
+                    payload.photo = imageUrl;
+                } else if (currentBase64Image) {
+                    payload.photo = currentBase64Image;
+                }
+
+                const { error } = await supabaseClient.from('alumni').insert([payload]);
+                if (error) throw error;
+
+                showMessage('ลงทะเบียนศิษย์เก่าสำเร็จ!', 'success');
+                currentSelectedFile = null;
+                currentBase64Image = null;
+                await syncData();
+                showView('alumni-login');
+            } catch (err) {
+                showMessage(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- Admin Dashboard & Tools ---
+        function renderAdminDashboard() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-8 page-transition">
+                    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div><h1 class="text-3xl font-bold text-slate-900 tracking-tight">Dashboard เจ้าหน้าที่</h1><p class="text-slate-500 text-sm">ภาพรวมสถิติและข้อมูลการลงทะเบียนศิษย์เก่า</p></div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="showView('admin-list')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-blue-700 transition">จัดการรายชื่อศิษย์เก่า</button>
+                            <button onclick="showView('admin-news')" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-green-700 transition">จัดการข่าว PR</button>
+							<button onclick="showView('admin-jobs')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition">จัดการกระดานธุรกิจ/หางาน</button>
+                            <button onclick="showView('admin-messages')" class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-amber-600 transition">กล่องข้อความ (${contactMessages.length})</button>
+                            ${currentUser?.role === 'super-admin' ? `<button onclick="showView('super-admin-panel')" class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-purple-700 transition">จัดการสิทธิ์</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm font-bold">ศิษย์เก่า</p>
+                            <p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.length}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm font-bold">ข่าวปักหมุด</p>
+                            <p class="text-4xl font-bold mt-2 text-green-600">${newsList.filter(n => n.showOnHome).length}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm font-bold">ศูนย์ฯ</p>
+                            <p class="text-4xl font-bold mt-2 text-slate-800">13</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm font-bold">จบปี 67</p>
+                            <p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.filter(a => a.gradYear == '2567').length}</p>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold mb-6 text-slate-800">ศูนย์การเรียนรู้</h3>
+                            <div class="h-64"><canvas id="centerChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold mb-6 text-slate-800">หลักสูตร</h3>
+                            <div class="h-64 flex items-center justify-center"><canvas id="courseChart"></canvas></div>
+                        </div>
+                    </div>
+                </section>`;
+            setTimeout(renderCharts, 100);
+        }
+
+        function renderCharts() {
+            const centersShort = ['NB', 'CB', 'CM', 'LP', 'NS', 'KK', 'UT', 'NR', 'AY', 'SP', 'PB', 'ST', 'SK'];
+            const centerData = centersShort.map(code => alumniData.filter(a => a.center && a.center.includes(code)).length);
+            const ctx1 = document.getElementById('centerChart');
+            if (ctx1) {
+                if (chartInstances.center) chartInstances.center.destroy();
+                chartInstances.center = new Chart(ctx1.getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: centersShort, datasets: [{ label: 'จำนวน', data: centerData, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+            const courses = ['IMM', 'DMTM', 'CIMM'];
+            const courseCount = courses.map(c => alumniData.filter(a => a.course && a.course.includes(c)).length);
+            const ctx2 = document.getElementById('courseChart');
+            if (ctx2) {
+                if (chartInstances.course) chartInstances.course.destroy();
+                chartInstances.course = new Chart(ctx2.getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: courses, datasets: [{ data: courseCount, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } } }
+                });
+            }
+        }
+
+        function renderAdminList() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition">
+                    <div class="flex items-center gap-3 mb-2">
+                        <button onclick="showView('admin-dashboard')" class="p-2 hover:bg-slate-100 rounded-full transition text-slate-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+                        <h1 class="text-2xl font-bold text-slate-800">รายชื่อศิษย์เก่า</h1>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
+                        
+                        <div class="flex flex-col lg:flex-row gap-4 mb-6 items-start lg:items-center flex-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <div class="relative flex-grow w-full lg:w-auto min-w-[200px]">
+                                <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                <input type="text" id="search-input" onkeyup="filterAlumni()" placeholder="ค้นหาชื่อ, รหัสนักศึกษา..." class="w-full pl-11 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                            </div>
+                            
+                            <div class="w-full lg:w-auto shrink-0 flex gap-2 flex-wrap">
+                                <select id="filter-center" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                    ${centerOptions.replace('<option value="">-- เลือกศูนย์ --</option>', '<option value="">ทุกศูนย์การเรียนรู้</option>')}
+                                </select>
+                                
+                                <select id="filter-course" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                    <option value="">ทุกหลักสูตร</option>
+                                    <option value="IMM">IMM</option>
+                                    <option value="DMTM">DMTM</option>
+                                    <option value="CIMM">CIMM</option>
+                                </select>
+
+                                <select id="filter-year" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                    <option value="">ทุกปีการศึกษาที่จบ</option>
+                                    ${[...new Set(alumniData.map(a => a.gradYear).filter(Boolean))].sort((a,b)=>b-a).map(year => `<option value="${year}">${year}</option>`).join('')}
+                                </select>
+
+                                <select id="filter-job" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600 max-w-[160px]">
+                                    <option value="">ทุกสายงาน</option>
+                                    <option value="ข้าราชการ/พนักงานของรัฐ">ข้าราชการ/รัฐ</option>
+                                    <option value="พนักงานบริษัทเอกชน">เอกชน</option>
+                                    <option value="เจ้าของธุรกิจ/ธุรกิจส่วนตัว">ธุรกิจส่วนตัว</option>
+                                    <option value="อาชีพอิสระ (Freelance)">อิสระ (Freelance)</option>
+                                    <option value="พนักงานรัฐวิสาหกิจ">รัฐวิสาหกิจ</option>
+                                </select>
+                            </div>
+
+                            <div class="w-full lg:w-auto ml-auto flex flex-wrap gap-2">
+                                <button onclick="exportToCSV('filtered')" class="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-sm text-sm whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                    Export เฉพาะที่กรอง
+                                </button>
+                                <button onclick="exportToCSV('all')" class="flex-1 lg:flex-none bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-sm text-sm whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    Export ทั้งหมด
+                                </button>
+                            </div>
+                        </div>
+
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 border-b font-bold text-xs text-slate-400 uppercase tracking-wider">
+                                <tr><th class="p-4">รูป</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">ศูนย์ฯ / รหัส</th><th class="p-4 text-right">จัดการ</th></tr>
+                            </thead>
+                            <tbody id="alumni-table-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                        
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-100">
+                            <div class="text-sm text-slate-500 font-medium" id="pagination-info">แสดง 0 ถึง 0 จาก 0 รายการ</div>
+                            <div class="flex gap-2">
+                                <button onclick="changePage(-1)" id="btn-prev" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition">ก่อนหน้า</button>
+                                <button onclick="changePage(1)" id="btn-next" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition">ถัดไป</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>`;
+            filterAlumni(); // โหลดข้อมูลหน้าแรก
+        }
+
+        function filterAlumni() {
+            const q = document.getElementById('search-input')?.value.toLowerCase() || '';
+            const centerFilter = document.getElementById('filter-center')?.value || '';
+            const courseFilter = document.getElementById('filter-course')?.value || '';
+            const yearFilter = document.getElementById('filter-year')?.value || '';
+            const jobFilter = document.getElementById('filter-job')?.value || '';
+            
+            filteredAlumniData = alumniData.filter(a => {
+                const textMatch = (a.fullName||'').toLowerCase().includes(q) || (a.studentId||'').includes(q);
+                const centerMatch = centerFilter === '' || (a.center && a.center.includes(centerFilter));
+                const courseMatch = courseFilter === '' || (a.course && a.course.includes(courseFilter));
+                const yearMatch = yearFilter === '' || a.gradYear == yearFilter;
+                const jobMatch = jobFilter === '' || (a.job && a.job.includes(jobFilter));
+                
+                return textMatch && centerMatch && courseMatch && yearMatch && jobMatch;
+            });
+            
+            currentPage = 1; // เมื่อค้นหาใหม่ ให้เด้งกลับไปหน้า 1 เสมอ
+            renderAlumniPage();
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            renderAlumniPage();
+        }
+
+        function renderAlumniPage() {
+            const tbody = document.getElementById('alumni-table-body');
+            if (!tbody) return;
+
+            const totalItems = filteredAlumniData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            
+            // ตัด array เอาเฉพาะ 50 คนของหน้านี้มาแสดง
+            const pageData = filteredAlumniData.slice(startIndex, endIndex);
+
+            tbody.innerHTML = pageData.map(a => `
+                <tr class="hover:bg-slate-50/50 transition">
+                    <td class="p-4"><div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-100 flex items-center justify-center">${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}</div></td>
+                    <td class="p-4 font-bold text-sm cursor-pointer hover:text-blue-600 transition" onclick="viewAlumniDetails(${a.id})">${a.prefix || ''}${a.fullName}</td>
+                    <td class="p-4 text-xs font-medium text-slate-500">${a.center}<br><span class="font-mono text-[10px]">${a.studentId}</span></td>
+                    <td class="p-4 text-right"><div class="flex justify-end gap-2"><button onclick="openAdminEdit(${a.id})" class="text-blue-500 hover:underline text-xs font-bold">แก้ไข</button><button onclick="deleteAlumni(${a.id})" class="text-red-400 hover:underline text-xs font-bold">ลบ</button></div></td>
+                </tr>`).join('');
+                
+            // อัปเดตข้อความบอกสถานะและปุ่ม
+            document.getElementById('pagination-info').innerText = totalItems === 0 
+                ? 'ไม่พบข้อมูล' 
+                : `แสดง ${startIndex + 1} ถึง ${endIndex} จากทั้งหมด ${totalItems} รายการ`;
+            
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === totalPages;
+        }
+
+        function exportToCSV(type = 'all') {
+            let dataToExport = [];
+            let fileName = 'alumni_data';
+
+            // ตรวจสอบว่าผู้ใช้กดปุ่มไหน
+            if (type === 'filtered') {
+                if (!filteredAlumniData || filteredAlumniData.length === 0) {
+                    showMessage('ไม่มีข้อมูลสำหรับ Export กรุณาปรับตัวกรองใหม่', 'error');
+                    return;
+                }
+                dataToExport = filteredAlumniData;
+                fileName += '_filtered'; // เติมชื่อไฟล์ให้รู้ว่ากรองแล้ว
+            } else {
+                if (!alumniData || alumniData.length === 0) {
+                    showMessage('ไม่มีข้อมูลในระบบ', 'error');
+                    return;
+                }
+                dataToExport = alumniData;
+                fileName += '_all'; // เติมชื่อไฟล์ให้รู้ว่าทั้งหมด
+            }
+
+            let csv = '\uFEFFรหัสนักศึกษา,คำนำหน้า,ชื่อ-สกุล,ชื่อเล่น,ศูนย์การเรียนรู้,หลักสูตร,ปีที่จบ,อาจารย์ที่ปรึกษา,อาชีพ/สายงาน,ตำแหน่ง,บริษัท/หน่วยงาน,เบอร์โทรศัพท์,อีเมล,ที่อยู่\n';
+            
+            dataToExport.forEach(a => {
+                const escapeCsv = (str) => '"' + (str || '').toString().replace(/"/g, '""') + '"';
+                csv += `${escapeCsv(a.studentId)},${escapeCsv(a.prefix)},${escapeCsv(a.fullName)},${escapeCsv(a.nickname)},${escapeCsv(a.center)},${escapeCsv(a.course)},${escapeCsv(a.gradYear)},${escapeCsv(a.advisor)},${escapeCsv(a.job)},${escapeCsv(a.position)},${escapeCsv(a.company)},${escapeCsv(a.phone)},${escapeCsv(a.email)},${escapeCsv(a.address)}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${fileName}_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        }
+
+        // --- FULL ADMIN EDIT PERMISSIONS ---
+        function openAdminEdit(id) {
+            const a = alumniData.find(d => d.id === id); if (!a) return;
+            currentBase64Image = a.photo || null;
+            const content = document.getElementById('edit-form-content');
+            content.innerHTML = `
+                <input type="hidden" name="id" value="${a.id}">
+                <div class="md:col-span-2 flex flex-col items-center bg-slate-50 p-6 rounded-2xl mb-4 border-2 border-dashed border-slate-200">
+                    <div id="admin-photo-preview" class="w-28 h-28 rounded-full bg-white border shadow-md overflow-hidden flex items-center justify-center">
+                        ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-12 h-12 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}
+                    </div>
+                    <input type="file" id="admin-p-input" class="hidden" accept="image/*" onchange="handleFileSelect(event, 'admin-photo-preview')">
+                    <button type="button" onclick="document.getElementById('admin-p-input').click()" class="mt-3 text-xs font-bold text-blue-600 bg-white px-4 py-1.5 rounded-full border shadow-sm hover:bg-blue-50 transition">เปลี่ยนรูปถ่าย</button>
+                </div>
+
+                <div class="md:col-span-2 bg-blue-50/50 p-5 rounded-2xl grid md:grid-cols-2 gap-4 border border-blue-100">
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ศูนย์การเรียนรู้</label><select name="center" class="w-full border rounded-xl px-4 py-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">${centerOptions.replace('value="' + a.center + '"', 'value="' + a.center + '" selected')}</select></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">รหัสนักศึกษา</label><input name="studentId" value="${a.studentId || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500 font-mono"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">หลักสูตร</label><select name="course" class="w-full border rounded-xl px-4 py-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">${courseOptions.replace('value="' + a.course + '"', 'value="' + a.course + '" selected')}</select></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ปีที่จบ (พ.ศ.)</label><input type="number" name="gradYear" value="${a.gradYear || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div class="md:col-span-2"><label class="text-xs font-bold text-blue-600 uppercase tracking-widest ml-1">อาจารย์ที่ปรึกษา</label><input name="advisor" value="${a.advisor || ''}" class="w-full border border-blue-200 rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">คำนำหน้า</label><select name="prefix" class="w-full border rounded-xl px-4 py-2.5 mt-1"><option value="นาย" ${a.prefix==='นาย'?'selected':''}>นาย</option><option value="นาง" ${a.prefix==='นาง'?'selected':''}>นาง</option><option value="นางสาว" ${a.prefix==='นางสาว'?'selected':''}>นางสาว</option></select></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ชื่อ-นามสกุล</label><input name="fullName" value="${a.fullName || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ชื่อเล่น</label><input name="nickname" value="${a.nickname || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">เบอร์โทรศัพท์</label><input name="phone" value="${a.phone || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">อีเมล</label><input name="email" value="${a.email || ''}" required type="email" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">สายงาน/อาชีพ</label><select name="job" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500">${positionOptions.replace('value="' + (a.job||'') + '"', 'value="' + (a.job||'') + '" selected')}</select></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ตำแหน่งระบุ</label><input name="position" value="${a.position || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">หน่วยงาน/บริษัท</label><input name="company" value="${a.company || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ที่อยู่ปัจจุบัน</label><textarea name="address" class="w-full border rounded-xl px-4 py-2 mt-1 h-16 outline-none focus:ring-2 focus:ring-blue-500">${a.address || ''}</textarea></div>
+            `;
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        async function handleAdminEditSave(e) {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            const id = f.get('id');
+            const p = Object.fromEntries(f);
+            delete p.id;
+
+            setLoading(true);
+            try {
+                // เรียกใช้ฟังก์ชันบีบอัดและอัปโหลดรูปภาพ
+                if (currentSelectedFile) {
+                    const imageUrl = await compressAndUploadImage(currentSelectedFile);
+                    p.photo = imageUrl;
+                } else if (currentBase64Image) {
+                    p.photo = currentBase64Image;
+                }
+
+                const { error } = await supabaseClient.from('alumni').update(p).eq('id', id);
+                if (error) throw error;
+
+                showMessage('อัปเดตข้อมูลสำเร็จ', 'success');
+                currentSelectedFile = null;
+                currentBase64Image = null;
+                closeModal();
+                await syncData();
+                renderAdminList();
+            }
+            catch (err) {
+                showMessage(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- Other Details ---
+        function viewAlumniDetails(id) {
+            const a = alumniData.find(d => d.id === id); if (!a) return;
+            document.getElementById('view-modal-title').innerText = 'ข้อมูลศิษย์เก่าฉบับเต็ม';
+            document.getElementById('view-content').innerHTML = `
+                <div class="flex flex-col md:flex-row gap-8 items-start">
+                    <div class="md:w-1/3 text-center bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+                        <div class="w-32 h-32 rounded-full mx-auto bg-white mb-4 flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
+                            ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-16 h-16 text-slate-200" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}
+                        </div>
+                        <h3 class="font-bold text-xl text-slate-800">${a.prefix || ''}${a.fullName}</h3><p class="text-blue-600 font-bold tracking-wider">${a.studentId}</p><p class="text-slate-400 text-xs mt-1">ชื่อเล่น: ${a.nickname || '-'}</p>
+                    </div>
+                    <div class="md:w-2/3 space-y-4 text-sm">
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">ประวัติการศึกษา</p><div class="grid grid-cols-2 gap-y-2"><p class="col-span-2"><strong>ศูนย์ฯ:</strong> ${a.center}</p><p><strong>หลักสูตร:</strong> ${a.course}</p><p><strong>ปีที่จบ:</strong> พ.ศ. ${a.gradYear}</p><p class="col-span-2"><strong>อาจารย์ที่ปรึกษา:</strong> <span class="text-blue-600 font-bold">${a.advisor || '-'}</span></p></div></div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">การทำงานและการติดต่อ</p><div class="space-y-1.5"><p><strong>สายงาน:</strong> ${a.job || '-'}</p><p><strong>ตำแหน่ง:</strong> ${a.position || '-'}</p><p><strong>บริษัท:</strong> ${a.company || '-'}</p><hr class="my-2 border-slate-50"><p><strong>เบอร์โทร:</strong> ${a.phone}</p><p><strong>อีเมล:</strong> ${a.email}</p><p><strong>ที่อยู่:</strong> ${a.address || '-'}</p></div></div>
+                    </div>
+                </div>`;
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('view-modal').classList.remove('hidden');
+        }
+
+        async function deleteAlumni(id) { if(confirm('ลบข้อมูลศิษย์เก่าถาวร?')) { setLoading(true); await supabaseClient.from('alumni').delete().eq('id', id); await syncData(); renderAdminList(); setLoading(false); } }
+
+        // --- Auth Sections ---
+        function renderStaffLogin() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="max-w-md mx-auto py-12 page-transition text-center bg-white p-10 rounded-3xl shadow-xl border">
+                    <h2 class="text-2xl font-bold mb-6 tracking-tight">Staff Login</h2>
+                    <form id="st-login-form" class="space-y-4 text-left">
+                        <input type="email" id="st-email" placeholder="อีเมล" required class="w-full border rounded-xl px-4 py-3">
+                        <input type="password" id="st-pass" placeholder="รหัสผ่าน" required class="w-full border rounded-xl px-4 py-3">
+                        <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 shadow-lg transition">เข้าสู่ระบบ</button>
+                    </form>
+                    <div class="mt-8 border-t pt-6">
+                        <button onclick="showView('staff-register')" class="text-blue-600 font-bold hover:underline">สมัครขอสิทธิ์เจ้าหน้าที่</button>
+                    </div>
+                </section>`;
+            document.getElementById('st-login-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const user = staffUsers.find(u => u.email === document.getElementById('st-email').value && u.password === document.getElementById('st-pass').value);
+                if (user && user.status === 'active') {
+                    currentUser = user;
+                    localStorage.setItem('current_staff_id', user.id);
+                    updateStaffNav();
+                    showView('admin-dashboard');
+                } else { showMessage('ข้อมูลไม่ถูกต้อง หรือรออนุมัติสิทธิ์', 'error'); }
+            };
+        }
+
+        function renderStaffRegister() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="max-w-md mx-auto py-12 page-transition">
+                    <div class="bg-white p-10 rounded-3xl shadow-xl border">
+                        <h2 class="text-2xl font-bold mb-6 text-center tracking-tight">สมัครขอสิทธิ์เจ้าหน้าที่</h2>
+                        <form id="st-reg-form" class="space-y-4">
+                            <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ชื่อ-นามสกุล</label><input type="text" name="name" placeholder="ระบุชื่อจริง" required class="w-full border rounded-xl px-4 py-3 mt-1"></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">อีเมลหน่วยงาน</label><input type="email" name="email" placeholder="example@pim.ac.th" required class="w-full border rounded-xl px-4 py-3 mt-1"></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ตั้งรหัสผ่าน</label><input type="password" name="password" required class="w-full border rounded-xl px-4 py-3 mt-1"></div>
+                            <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 mt-2">ส่งคำขอสมัคร</button>
+                        </form>
+                        <button onclick="showView('staff-login')" class="w-full mt-4 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">ย้อนกลับไปหน้าล็อกอิน</button>
+                    </div>
+                </section>`;
+            document.getElementById('st-reg-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const p = Object.fromEntries(new FormData(e.target));
+                p.status = 'pending'; p.role = 'admin';
+                setLoading(true);
+                try {
+                    const { error } = await supabaseClient.from('staff').insert([p]);
+                    if (error) throw error;
+                    showMessage('ส่งคำขอสมัครสำเร็จ รอแอดมินอนุมัติ', 'success');
+                    showView('staff-login'); await syncData();
+                } catch (err) { showMessage(err.message, 'error'); } finally { setLoading(false); }
+            };
+        }
+
+        function renderAlumniLogin() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="max-w-md mx-auto py-12 page-transition text-center bg-white p-10 rounded-3xl shadow-xl border">
+                    <h2 class="text-2xl font-bold mb-8 tracking-tight">เข้าสู่ระบบศิษย์เก่า</h2>
+                    <form id="al-login-form" class="space-y-5 text-left">
+                        <div><label class="text-xs font-bold text-slate-500 ml-1 uppercase">รหัสนักศึกษา 10 หลัก</label><input type="text" id="l-sid" placeholder="6XXXXXXX-X" required class="w-full border rounded-xl px-4 py-3 mt-1"></div>
+                        <div><label class="text-xs font-bold text-slate-500 ml-1 uppercase">เบอร์โทรศัพท์</label><input type="tel" id="l-phone" placeholder="08XXXXXXXX" required class="w-full border rounded-xl px-4 py-3 mt-1"></div>
+                        <button class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition transform active:scale-95">เข้าสู่ระบบ</button>
+                    </form>
+                </section>`;
+            document.getElementById('al-login-form').onsubmit = (e) => {
+                e.preventDefault();
+                const sid = document.getElementById('l-sid').value; const phone = document.getElementById('l-phone').value;
+                const found = alumniData.find(a => a.studentId === sid && a.phone === phone);
+                if (found) { currentAlumni = found; localStorage.setItem('current_alumni_id', found.id); updateAlumniNav(); showView('alumni-profile'); showMessage('ยินดีต้อนรับ คุณ ' + found.fullName, 'success'); }
+                else { showMessage('ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบรหัสและเบอร์โทร', 'error'); }
+            };
+        }
+
+        function renderAlumniProfile() {
+            if (!currentAlumni) return showView('alumni-login');
+            document.getElementById('main-content').innerHTML = `
+                <section class="max-w-4xl mx-auto space-y-6 page-transition">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border flex flex-col md:flex-row items-center md:items-start gap-6 relative">
+                        <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-blue-50 bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            ${currentAlumni.photo ? `<img src="${currentAlumni.photo}" class="w-full h-full object-cover">` : '<svg class="w-12 h-12 text-blue-200" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}
+                        </div>
+                        <div class="flex-grow text-center md:text-left">
+                            <h2 class="text-2xl font-bold text-slate-800">${currentAlumni.prefix || ''}${currentAlumni.fullName} ${currentAlumni.nickname ? '(' + currentAlumni.nickname + ')' : ''}</h2>
+                            <p class="text-blue-600 font-bold mt-1">ID: ${currentAlumni.studentId}</p>
+                            <p class="text-slate-500 font-medium mt-1">${currentAlumni.course} | ศูนย์: ${currentAlumni.center}</p>
+                        </div>
+                        <div class="flex flex-col gap-2 mt-4 md:mt-0">
+                            <button onclick="showView('alumni-directory')" class="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-xl transition shadow-md hover:bg-indigo-700 flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                ทำเนียบศิษย์เก่า
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="openSelfEdit()" class="flex-1 text-blue-600 font-bold px-4 py-2 hover:bg-blue-50 rounded-xl transition border border-blue-100 text-sm">แก้ไขข้อมูล</button>
+                                <button onclick="logoutAlumni()" class="flex-1 text-red-500 font-bold px-4 py-2 hover:bg-red-50 rounded-xl transition border border-red-100 text-sm">ออก</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-full">
+                            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 tracking-tight">ข้อมูลการศึกษา</h3>
+                            <div class="space-y-3 text-sm">
+                                <p><span class="text-slate-500 font-medium inline-block w-24">ปีที่จบ:</span> ${currentAlumni.gradYear || '-'}</p>
+                                <p><span class="text-slate-500 font-medium inline-block w-24">อาจารย์ที่ปรึกษา:</span> <span class="text-blue-600 font-bold">${currentAlumni.advisor || '-'}</span></p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-full">
+                            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 tracking-tight">ข้อมูลการทำงาน</h3>
+                            <div class="space-y-3 text-sm">
+                                <p><span class="text-slate-500 font-medium inline-block w-24">สายงาน/อาชีพ:</span> ${currentAlumni.job || '-'}</p>
+                                <p><span class="text-slate-500 font-medium inline-block w-24">ตำแหน่ง:</span> ${currentAlumni.position || '-'}</p>
+                                <p><span class="text-slate-500 font-medium inline-block w-24">บริษัท:</span> ${currentAlumni.company || '-'}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm md:col-span-2">
+                            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 tracking-tight">การติดต่อและที่อยู่</h3>
+                            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                                <p><span class="text-slate-500 font-medium block mb-1">เบอร์โทรศัพท์:</span> ${currentAlumni.phone || '-'}</p>
+                                <p><span class="text-slate-500 font-medium block mb-1">อีเมล:</span> ${currentAlumni.email || '-'}</p>
+                                <p class="md:col-span-2"><span class="text-slate-500 font-medium block mb-1">ที่อยู่ปัจจุบัน:</span> ${currentAlumni.address || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>`;
+        }
+
+        // --- NEW: ALUMNI SELF EDIT PERMISSIONS ---
+        function openSelfEdit() {
+            if (!currentAlumni) return;
+            const a = currentAlumni;
+            currentBase64Image = a.photo || null;
+            const content = document.getElementById('alumni-edit-form-content');
+
+            // Re-using the same comprehensive form fields as Admin Edit
+            content.innerHTML = `
+                <div class="md:col-span-2 flex flex-col items-center bg-slate-50 p-6 rounded-2xl mb-4 border-2 border-dashed border-slate-200">
+                    <div id="self-photo-preview" class="w-28 h-28 rounded-full bg-white border shadow-md overflow-hidden flex items-center justify-center">
+                        ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-12 h-12 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}
+                    </div>
+                    <input type="file" id="self-p-input" class="hidden" accept="image/*" onchange="handleFileSelect(event, 'self-photo-preview')">
+                    <button type="button" onclick="document.getElementById('self-p-input').click()" class="mt-3 text-xs font-bold text-blue-600 bg-white px-4 py-1.5 rounded-full border shadow-sm hover:bg-blue-50 transition">เปลี่ยนรูปถ่าย</button>
+                </div>
+
+                <div class="md:col-span-2 bg-blue-50/50 p-5 rounded-2xl grid md:grid-cols-2 gap-4 border border-blue-100">
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ศูนย์การเรียนรู้</label><select name="center" class="w-full border rounded-xl px-4 py-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">${centerOptions.replace('value="' + a.center + '"', 'value="' + a.center + '" selected')}</select></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">รหัสนักศึกษา</label><input name="studentId" value="${a.studentId || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500 font-mono"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">หลักสูตร</label><select name="course" class="w-full border rounded-xl px-4 py-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">${courseOptions.replace('value="' + a.course + '"', 'value="' + a.course + '" selected')}</select></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ปีที่จบ (พ.ศ.)</label><input type="number" name="gradYear" value="${a.gradYear || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div class="md:col-span-2"><label class="text-xs font-bold text-blue-600 uppercase tracking-widest ml-1">อาจารย์ที่ปรึกษา</label><input name="advisor" value="${a.advisor || ''}" class="w-full border border-blue-200 rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">คำนำหน้า</label><select name="prefix" class="w-full border rounded-xl px-4 py-2.5 mt-1"><option value="นาย" ${a.prefix==='นาย'?'selected':''}>นาย</option><option value="นาง" ${a.prefix==='นาง'?'selected':''}>นาง</option><option value="นางสาว" ${a.prefix==='นางสาว'?'selected':''}>นางสาว</option></select></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ชื่อ-นามสกุล</label><input name="fullName" value="${a.fullName || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ชื่อเล่น</label><input name="nickname" value="${a.nickname || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">เบอร์โทรศัพท์</label><input name="phone" value="${a.phone || ''}" required class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">อีเมล</label><input name="email" value="${a.email || ''}" required type="email" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">สายงาน/อาชีพ</label><select name="job" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500">${positionOptions.replace('value="' + (a.job||'') + '"', 'value="' + (a.job||'') + '" selected')}</select></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ตำแหน่งระบุ</label><input name="position" value="${a.position || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">หน่วยงาน/บริษัท</label><input name="company" value="${a.company || ''}" class="w-full border rounded-xl px-4 py-2.5 mt-1 outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ที่อยู่ปัจจุบัน</label><textarea name="address" class="w-full border rounded-xl px-4 py-2 mt-1 h-16 outline-none focus:ring-2 focus:ring-blue-500">${a.address || ''}</textarea></div>
+            `;
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('alumni-edit-modal').classList.remove('hidden');
+        }
+
+        async function handleSelfEditSave(e) {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            const p = Object.fromEntries(f);
+            const id = currentAlumni.id;
+
+            setLoading(true);
+            try {
+                // เรียกใช้ฟังก์ชันบีบอัดและอัปโหลดรูปภาพ
+                if (currentSelectedFile) {
+                    const imageUrl = await compressAndUploadImage(currentSelectedFile);
+                    p.photo = imageUrl;
+                } else if (currentBase64Image) {
+                    p.photo = currentBase64Image;
+                }
+
+                const { error } = await supabaseClient.from('alumni').update(p).eq('id', id);
+                if (error) throw error;
+
+                showMessage('อัปเดตข้อมูลสำเร็จ', 'success');
+                currentSelectedFile = null;
+                currentBase64Image = null;
+                closeModal();
+                await syncData();
+
+                currentAlumni = alumniData.find(a => a.id === id);
+                updateAlumniNav();
+                renderAlumniProfile();
+            }
+            catch (err) {
+                showMessage(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+// --- NEW: ALUMNI DIRECTORY ---
+        function renderAlumniDirectory() {
+            if (!currentAlumni) return showView('alumni-login');
+
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition max-w-6xl mx-auto">
+                    <div class="flex items-center gap-3 mb-2">
+                        <button onclick="showView('alumni-profile')" class="p-2 hover:bg-slate-100 rounded-full transition text-slate-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+                        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">ทำเนียบศิษย์เก่า</h1>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4">
+                        <input type="text" id="dir-search" onkeyup="filterDirectory()" placeholder="ค้นหาชื่อ, นามสกุล, หรือรหัสนักศึกษา..." class="flex-grow border rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                        <select id="dir-course" onchange="filterDirectory()" class="border rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                            <option value="">ทุกหลักสูตร</option>
+                            <option value="IMM">IMM</option>
+                            <option value="DMTM">DMTM</option>
+                            <option value="CIMM">CIMM</option>
+                        </select>
+                        <select id="dir-year" onchange="filterDirectory()" class="border rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                            <option value="">ทุกปีการศึกษาที่จบ</option>
+                            ${[...new Set(alumniData.map(a => a.gradYear).filter(Boolean))].sort((a,b)=>b-a).map(year => `<option value="${year}">${year}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div id="dir-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+                    <div class="flex flex-col sm:flex-row justify-between items-center mt-6 pt-4 border-t border-slate-200 gap-4">
+                        <span id="dir-page-info" class="text-slate-500 font-medium text-sm">กำลังโหลดข้อมูล...</span>
+                        <div class="flex gap-2">
+                            <button onclick="changeDirPage(-1)" id="dir-btn-prev" class="px-5 py-2 bg-white border rounded-xl font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition shadow-sm">ก่อนหน้า</button>
+                            <button onclick="changeDirPage(1)" id="dir-btn-next" class="px-5 py-2 bg-white border rounded-xl font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition shadow-sm">ถัดไป</button>
+                        </div>
+                    </div>
+                </section>
+            `;
+            filterDirectory();
+        }
+
+        function filterDirectory() {
+            const q = document.getElementById('dir-search')?.value.toLowerCase() || '';
+            const course = document.getElementById('dir-course')?.value || '';
+            const year = document.getElementById('dir-year')?.value || '';
+
+            dirFilteredData = alumniData.filter(a => {
+                // อนุมัติให้โชว์ทุกคน (แม้แต่คนที่กำลังใช้งานอยู่)
+                const textMatch = (a.fullName||'').toLowerCase().includes(q) || (a.studentId||'').includes(q);
+                const courseMatch = course === '' || (a.course && a.course.includes(course));
+                const yearMatch = year === '' || a.gradYear == year;
+                return textMatch && courseMatch && yearMatch;
+            });
+
+            dirCurrentPage = 1;
+            renderDirectoryPage();
+        }
+
+        function changeDirPage(dir) {
+            dirCurrentPage += dir;
+            renderDirectoryPage();
+        }
+
+        function renderDirectoryPage() {
+            const grid = document.getElementById('dir-grid');
+            if (!grid) return;
+
+            const totalItems = dirFilteredData.length;
+            const totalPages = Math.ceil(totalItems / dirItemsPerPage) || 1;
+
+            if (dirCurrentPage < 1) dirCurrentPage = 1;
+            if (dirCurrentPage > totalPages) dirCurrentPage = totalPages;
+
+            const startIndex = (dirCurrentPage - 1) * dirItemsPerPage;
+            const pageData = dirFilteredData.slice(startIndex, startIndex + dirItemsPerPage);
+
+            if (pageData.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400">ไม่พบรายชื่อศิษย์เก่าที่ค้นหา</div>';
+            } else {
+                grid.innerHTML = pageData.map(a => `
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-start gap-4 hover:shadow-lg hover:-translate-y-1 transition duration-300">
+                        <div class="w-16 h-16 rounded-full bg-slate-100 border flex-shrink-0 overflow-hidden shadow-sm">
+                            ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : `<svg class="w-8 h-8 m-4 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>`}
+                        </div>
+                        <div class="overflow-hidden w-full">
+                            <h3 class="font-bold text-slate-800 text-lg truncate">${a.prefix||''}${a.fullName} ${a.nickname ? `(${a.nickname})` : ''}</h3>
+                            <p class="text-sm text-indigo-600 font-bold tracking-wider">${a.studentId}</p>
+                            <p class="text-xs text-slate-500 mt-1 truncate">หลักสูตร: ${a.course} (ปี ${a.gradYear||'-'})</p>
+                            <p class="text-xs text-slate-500 truncate">ศูนย์ฯ: ${a.center}</p>
+                            ${a.job || a.company ? `<div class="mt-3 pt-3 border-t border-slate-50 text-xs text-slate-600 space-y-1">
+                                <p class="truncate"><span class="font-bold">สายงาน:</span> ${a.job||'-'} ${a.position ? `(${a.position})` : ''}</p>
+                                <p class="truncate"><span class="font-bold">องค์กร:</span> ${a.company||'-'}</p>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('dir-page-info').innerText = `หน้า ${dirCurrentPage} จาก ${totalPages} (รวม ${totalItems} คน)`;
+            document.getElementById('dir-btn-prev').disabled = dirCurrentPage === 1;
+            document.getElementById('dir-btn-next').disabled = dirCurrentPage === totalPages;
+        }
+        // --- PR News ---
+        function renderNews() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-8 page-transition">
+                    <h1 class="text-3xl font-bold text-slate-900 tracking-tight">ข่าวสารประชาสัมพันธ์</h1>
+                    ${newsList.length === 0 ? '<div class="text-center py-20 text-slate-400">ยังไม่มีข่าวสารในขณะนี้</div>' :
+                        `<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            ${newsList.map(n => `
+                                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden group hover:shadow-lg transition cursor-pointer" onclick="viewNewsDetails(${n.id})">
+                                    <div class="h-48 overflow-hidden bg-slate-100"><img src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>
+                                    <div class="p-6">
+                                        <div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wider">${formatNewsDate(n.date, n.end_date)}</div>
+                                        <h3 class="font-bold text-lg mb-2 text-slate-800 line-clamp-1">${n.title}</h3>
+                                        <p class="text-slate-500 text-sm line-clamp-3">${n.content}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`
+                    }
+                </section>`;
+        }
+
+        function renderAdminNews() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition">
+                    <div class="flex items-center justify-between">
+                        <h1 class="text-2xl font-bold text-green-700">จัดการข่าวสารประชาสัมพันธ์</h1>
+                        <button onclick="openAddNewsModal()" class="bg-green-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-green-700">+ เพิ่มข่าวใหม่</button>
+                    </div>
+                    <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs"><th class="px-6 py-4">วันที่</th><th class="px-6 py-4">หัวข้อข่าว</th><th class="px-6 py-4 text-center">แสดงหน้าหลัก</th><th class="px-6 py-4 text-right">จัดการ</th></thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${newsList.map(n => `
+                                <tr>
+                                    <td class="px-6 py-4 text-sm text-slate-500">${formatNewsDate(n.date, n.end_date)}</td>
+                                    <td class="px-6 py-4 font-bold text-sm">${n.title}</td>
+                                    <td class="px-6 py-4 text-center"><button onclick="toggleNewsHome(${n.id}, ${!n.showOnHome})" class="text-xs px-3 py-1 rounded-full font-bold transition ${n.showOnHome ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${n.showOnHome ? 'แสดงอยู่' : 'ซ่อน'}</button></td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button onclick="openEditNewsModal(${n.id})" class="text-blue-500 hover:text-blue-700 font-bold text-sm mr-2">แก้ไข</button>
+                                        <button onclick="deleteNews(${n.id})" class="text-red-500 hover:text-red-700 font-bold text-sm">ลบ</button>
+                                    </td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>`;
+        }
+
+        function viewNewsDetails(id) {
+            const n = newsList.find(item => item.id === id); if (!n) return;
+            document.getElementById('view-modal-title').innerText = 'ข่าวประชาสัมพันธ์';
+            document.getElementById('view-content').innerHTML = `
+                <img src="${n.image}" class="w-full rounded-2xl h-72 object-cover shadow-sm mb-6" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
+                <div>
+                    <p class="text-xs text-blue-600 font-bold uppercase tracking-widest mb-2">กำหนดการ: ${formatNewsDate(n.date, n.end_date)}</p>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4 leading-tight">${n.title}</h3>
+                    <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-lg border-t pt-6">${n.content}</div>
+                </div>`;
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('view-modal').classList.remove('hidden');
+        }
+
+        function openAddNewsModal() {
+            document.getElementById('news-form').reset(); document.getElementById('news-form').elements['id'].value = '';
+            document.getElementById('news-modal-title').innerText = 'เพิ่มข่าวสารใหม่'; document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('add-news-modal').classList.remove('hidden');
+        }
+
+        // ฟังก์ชันสำหรับเปิด Modal (หากคุณต้องการนำไปผูกกับปุ่มในหน้าจัดการสิทธิ์)
+function openAddStaffModal() {
+    document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+    document.getElementById('add-staff-modal').classList.remove('hidden');
+}
+
+async function handleAddStaff(event) {
+    event.preventDefault();
+    const form = event.target;
+    const payload = Object.fromEntries(new FormData(form));
+
+    // กำหนดสถานะให้ใช้งานได้ทันทีเพราะ Super Admin เป็นคนเพิ่มเอง
+    payload.status = 'active';
+    payload.role = 'admin';
+
+    setLoading(true);
+    try {
+        const { error } = await supabaseClient.from('staff').insert([payload]);
+        if (error) throw error;
+
+        showMessage('เพิ่มเจ้าหน้าที่ใหม่สำเร็จ', 'success');
+        closeModal();
+        form.reset();
+
+        await syncData(); // ซิงก์ข้อมูล
+        renderSuperAdmin(); // โหลดตารางใหม่
+    } catch (err) {
+        showMessage('เกิดข้อผิดพลาด: ' + err.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+        function openEditNewsModal(id) {
+            const n = newsList.find(item => item.id === id); if(!n) return; const f = document.getElementById('news-form');
+            f.elements['id'].value = n.id; f.elements['title'].value = n.title; f.elements['content'].value = n.content; f.elements['date'].value = n.date; f.elements['end_date'].value = n.end_date || ''; f.elements['image'].value = n.image; f.elements['showOnHome'].checked = n.showOnHome;
+            document.getElementById('news-modal-title').innerText = 'แก้ไขข่าวสาร'; document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('add-news-modal').classList.remove('hidden');
+        }
+        async function handleSaveNews(e) {
+            e.preventDefault(); const f = new FormData(e.target); const id = f.get('id'); const p = Object.fromEntries(f); p.showOnHome = f.get('showOnHome') === 'on'; delete p.id; setLoading(true); try { if(id) await supabaseClient.from('news').update(p).eq('id', id); else await supabaseClient.from('news').insert([p]); closeModal(); await syncData(); renderAdminNews(); } catch(err) { alert(err.message); } finally { setLoading(false); }
+        }
+
+        function openEditFooterModal() {
+            document.getElementById('conf-site-name').value = siteConfig.siteName || '';
+            document.getElementById('conf-logo-url').value = siteConfig.logoUrl || '';
+            document.getElementById('conf-org-name').value = siteConfig.orgName || '';
+            document.getElementById('conf-phone').value = siteConfig.phone || '';
+            document.getElementById('conf-email').value = siteConfig.email || '';
+            document.getElementById('conf-pdpa').value = siteConfig.pdpaText || '';
+
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('edit-footer-modal').classList.remove('hidden');
+        }
+
+        async function handleSaveSiteConfig(event) {
+            event.preventDefault();
+
+            const payload = {
+                site_name: document.getElementById('conf-site-name').value,
+                logo_url: document.getElementById('conf-logo-url').value,
+                org_name: document.getElementById('conf-org-name').value,
+                phone: document.getElementById('conf-phone').value,
+                email: document.getElementById('conf-email').value,
+                pdpa_text: document.getElementById('conf-pdpa').value
+            };
+
+            setLoading(true);
+            try {
+                const { error } = await supabaseClient.from('site_settings').upsert([{ id: 1, ...payload }]);
+                if (error) throw error;
+
+                showMessage('อัปเดตข้อมูลเว็บไซต์และนโยบายสำเร็จ', 'success');
+                closeModal();
+                await fetchSiteSettings(); 
+                
+                // ถ้ายืนอยู่หน้าลงทะเบียน ให้รีเฟรชหน้าเพื่อแสดงข้อความใหม่ทันที
+                if (document.getElementById('main-content').innerHTML.includes('ลงทะเบียนศิษย์เก่า')) renderRegister();
+
+            } catch (err) {
+                showMessage('เกิดข้อผิดพลาด: ' + err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function toggleNewsHome(id, show) { setLoading(true); await supabaseClient.from('news').update({ showOnHome: show }).eq('id', id); await syncData(); renderAdminNews(); setLoading(false); }
+        async function deleteNews(id) { if(confirm('ลบข่าวสารนี้?')) { setLoading(true); await supabaseClient.from('news').delete().eq('id', id); await syncData(); renderAdminNews(); setLoading(false); } }
+
+        // --- Other SuperAdmin & Messages ---
+        function renderSuperAdmin() {
+    document.getElementById('main-content').innerHTML = `
+        <section class="space-y-6 page-transition">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-purple-700">จัดการสิทธิ์เจ้าหน้าที่</h1>
+                <button onclick="openAddStaffModal()" class="bg-purple-600 text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-purple-700 transition">+ เพิ่มเจ้าหน้าที่</button>
+            </div>
+            <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                        <tr><th class="px-6 py-4">ชื่อ</th><th class="px-6 py-4">บทบาท</th><th class="px-6 py-4">สถานะ</th><th class="px-6 py-4 text-center">จัดการ</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">${staffUsers.map(u => {
+                        let roleBtn = '';
+                        if (u.status === 'active' && currentUser && u.id !== currentUser.id) {
+                            if (u.role === 'admin') {
+                                roleBtn = `<button onclick="toggleRole(${u.id}, 'super-admin')" class="ml-2 text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded-lg hover:bg-purple-200 transition">↑ เลื่อนเป็น Super</button>`;
+                            } else if (u.role === 'super-admin') {
+                                roleBtn = `<button onclick="toggleRole(${u.id}, 'admin')" class="ml-2 text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-200 transition">↓ ลดเป็น Admin</button>`;
+                            }
+                        }
+                        return `<tr><td class="px-6 py-4 font-bold">${u.name}<div class="text-[10px] text-slate-400 font-normal">${u.email}</div></td><td class="px-6 py-4 flex items-center"><span class="text-[10px] font-bold uppercase ${u.role === 'super-admin' ? 'text-purple-600' : 'text-slate-500'}">${u.role}</span>${roleBtn}</td><td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[10px] font-bold ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${u.status}</span></td><td class="px-6 py-4 text-center">${u.status === 'pending' ? `<button onclick="approveStaff(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded text-xs mr-2">อนุมัติ</button>` : ''}<button onclick="deleteStaff(${u.id})" class="text-red-400 text-xs hover:underline">ลบสิทธิ์</button></td></tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </div>
+        </section>`;
+}
+        function renderAdminMessages() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition">
+                    <h1 class="text-2xl font-bold text-amber-600">กล่องข้อความติดต่อ</h1>
+                    <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                        <table class="w-full text-left"><thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs"><tr><th class="px-6 py-4">วันที่</th><th class="px-6 py-4">ผู้ส่ง</th><th class="px-6 py-4">ข้อความ</th><th class="px-6 py-4 text-right">จัดการ</th></tr></thead>
+                            <tbody class="divide-y divide-slate-100">${contactMessages.length === 0 ? '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400">ไม่มีข้อความใหม่</td></tr>' : contactMessages.map(m => `<tr><td class="px-6 py-4 text-sm text-slate-500">${new Date(m.created_at).toLocaleDateString('th-TH')}</td><td class="px-6 py-4 font-bold text-sm">${m.name}<div class="text-[10px] text-blue-500">${m.email}</div></td><td class="px-6 py-4 max-w-md truncate text-sm cursor-pointer hover:text-blue-600" onclick="viewMessageDetails(${m.id})">${m.message}</td><td class="px-6 py-4 text-right"><button onclick="deleteMessage(${m.id})" class="text-red-500 hover:text-red-700 text-xs font-bold">ลบ</button></td></tr>`).join('')}</tbody>
+                        </table>
+                    </div>
+                </section>`;
+        }
+
+        function viewMessageDetails(id) {
+            const m = contactMessages.find(msg => msg.id === id); if (!m) return;
+            document.getElementById('view-modal-title').innerText = 'รายละเอียดข้อความ';
+            document.getElementById('view-content').innerHTML = `<p class="text-xs text-slate-400 mb-2 font-bold uppercase">จาก: ${m.name} (${m.email})</p><div class="bg-slate-50 p-6 rounded-2xl border text-slate-700 leading-relaxed whitespace-pre-wrap">${m.message}</div>`;
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('view-modal').classList.remove('hidden');
+        }
+
+        async function toggleRole(id, role) { setLoading(true); await supabaseClient.from('staff').update({ role: role }).eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); }
+        async function approveStaff(id) { setLoading(true); await supabaseClient.from('staff').update({ status: 'active' }).eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); }
+        async function deleteStaff(id) { if(confirm('ลบสิทธิ์เจ้าหน้าที่นี้?')) { setLoading(true); await supabaseClient.from('staff').delete().eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); } }
+        async function deleteMessage(id) { if(confirm('ลบข้อความนี้?')) { setLoading(true); await supabaseClient.from('contacts').delete().eq('id', id); await syncData(); renderAdminMessages(); setLoading(false); } }
+
+        // --- Core Helpers ---
+		// --- JOB BOARD FUNCTIONS ---
+        function renderJobBoard() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-8 page-transition max-w-6xl mx-auto">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-indigo-50 p-8 rounded-3xl border border-indigo-100">
+                        <div>
+                            <h1 class="text-3xl font-bold text-indigo-900 tracking-tight">กระดานโปรโมทธุรกิจ & รับสมัครงาน</h1>
+                            <p class="text-indigo-700 mt-1">พื้นที่สำหรับศิษย์เก่าเพื่อต่อยอดธุรกิจและสายอาชีพ</p>
+                        </div>
+                        ${(currentAlumni || currentUser) ? `<button onclick="openAddJobModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-2">+ สร้างประกาศ</button>` : `<button onclick="showView('alumni-login')" class="bg-white border border-indigo-200 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition shadow-sm">เข้าสู่ระบบเพื่อลงประกาศ</button>`}
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${jobList.filter(j => j.is_approved).length === 0 ? '<div class="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400">ยังไม่มีประกาศในขณะนี้</div>' : jobList.filter(j => j.is_approved).map(j => {
+                            
+                            const isOwner = currentAlumni && j.author_name === currentAlumni.fullName;
+                            const isAdmin = currentUser !== null;
+                            const controls = (isOwner || isAdmin) ? `
+                                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4">
+                                    <button onclick="openEditJobModal(${j.id})" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> แก้ไข</button>
+                                    <button onclick="deleteJob(${j.id})" class="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> ลบ</button>
+                                </div>
+                            ` : '';
+
+                            return `
+                            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-lg transition flex flex-col h-full overflow-hidden group">
+                                <div class="cursor-pointer flex-grow flex flex-col" onclick="viewJobDetails(${j.id})">
+                                    ${j.image ? `<div class="h-48 -mx-6 -mt-6 mb-4 bg-slate-100 overflow-hidden"><img src="${j.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>` : ''}
+                                    <div class="flex-grow">
+                                        <span class="px-3 py-1 text-[10px] font-bold uppercase rounded-full ${j.type === 'job' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}">${j.type === 'job' ? 'รับสมัครงาน' : 'โปรโมทธุรกิจ'}</span>
+                                        <h3 class="font-bold text-lg mt-3 text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">${j.title}</h3>
+                                        <p class="text-xs text-slate-400 mt-1 mb-3">โดย: ${j.author_name} • ${new Date(j.created_at).toLocaleDateString('th-TH')}</p>
+                                        <p class="text-sm text-slate-600 line-clamp-3 mb-4 whitespace-pre-wrap">${j.description}</p>
+                                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mt-auto">
+                                            <p class="text-xs font-bold text-slate-500 mb-1">ติดต่อ:</p>
+                                            <p class="text-sm font-medium text-indigo-700">${j.contact}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                ${controls}
+                            </div>
+                        `}).join('')}
+                    </div>
+                </section>
+            `;
+        }
+		function viewJobDetails(id) {
+            const j = jobList.find(item => item.id === id); 
+            if (!j) return;
+            
+            document.getElementById('view-modal-title').innerText = j.type === 'job' ? 'รายละเอียดประกาศหางาน' : 'รายละเอียดธุรกิจ/บริการ';
+            
+            document.getElementById('view-content').innerHTML = `
+                ${j.image ? `<img src="${j.image}" class="w-full rounded-2xl h-80 object-contain bg-slate-50 border border-slate-100 mb-6 shadow-inner" onerror="this.src='https://via.placeholder.com/800x400?text=No+Image'">` : ''}
+                <div>
+                    <span class="px-3 py-1 text-[10px] font-bold uppercase rounded-full ${j.type === 'job' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'} inline-block mb-3">${j.type === 'job' ? 'รับสมัครงาน' : 'โปรโมทธุรกิจ'}</span>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2 leading-tight">${j.title}</h3>
+                    <p class="text-xs text-slate-500 font-medium mb-6">โพสต์โดย: ${j.author_name} • เมื่อ: ${new Date(j.created_at).toLocaleDateString('th-TH')}</p>
+                    
+                    <div class="whitespace-pre-wrap text-slate-700 leading-relaxed text-base border-t border-slate-100 pt-6 mb-8">${j.description}</div>
+                    
+                    <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                        <p class="text-xs font-bold text-indigo-800 uppercase tracking-widest mb-1 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            ช่องทางการติดต่อ
+                        </p>
+                        <p class="text-lg font-bold text-indigo-700 mt-2">${j.contact}</p>
+                    </div>
+                </div>`;
+            
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('view-modal').classList.remove('hidden');
+        }
+
+        function openAddJobModal() {
+            if (!currentAlumni && !currentUser) { showMessage('กรุณาเข้าสู่ระบบ', 'error'); return; }
+            document.getElementById('job-form').reset();
+            document.getElementById('job-id').value = '';
+            document.getElementById('job-image').value = '';
+            document.getElementById('job-modal-title').innerText = 'เพิ่มประกาศใหม่';
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('add-job-modal').classList.remove('hidden');
+        }
+
+        function openEditJobModal(id) {
+            const j = jobList.find(item => item.id === id);
+            if (!j) return;
+            
+            document.getElementById('job-form').reset();
+            document.getElementById('job-id').value = j.id;
+            document.getElementById('job-type').value = j.type;
+            document.getElementById('job-title').value = j.title;
+            document.getElementById('job-desc').value = j.description;
+            document.getElementById('job-contact').value = j.contact;
+            document.getElementById('job-image').value = j.image || '';
+            
+            document.getElementById('job-modal-title').innerText = 'แก้ไขประกาศ';
+            document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
+            document.getElementById('add-job-modal').classList.remove('hidden');
+        }
+
+        async function handleSaveJob(e) {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            const id = f.get('id');
+            const p = {
+                type: f.get('type'),
+                title: f.get('title'),
+                description: f.get('description'),
+                contact: f.get('contact'),
+                image: f.get('image') || null
+            };
+            
+            if (!id) {
+                if (currentAlumni) {
+                    p.author_name = currentAlumni.fullName;
+                    p.is_approved = false; 
+                } else if (currentUser) {
+                    p.author_name = currentUser.name + ' (เจ้าหน้าที่)';
+                    p.is_approved = true; 
+                }
+            }
+            
+            setLoading(true);
+            try {
+                if (id) {
+                    const { error } = await supabaseClient.from('jobs').update(p).eq('id', id);
+                    if (error) throw error;
+                    showMessage('แก้ไขประกาศสำเร็จ', 'success');
+                } else {
+                    const { error } = await supabaseClient.from('jobs').insert([p]);
+                    if (error) throw error;
+                    if (currentUser) showMessage('ลงประกาศสำเร็จ', 'success');
+                    else showMessage('ส่งประกาศสำเร็จ กรุณารอเจ้าหน้าที่ตรวจสอบ', 'success');
+                }
+                
+                closeModal();
+                await syncData();
+                
+                if (document.getElementById('main-content').innerHTML.includes('จัดการกระดานงาน')) renderAdminJobs();
+                else renderJobBoard();
+                
+            } catch(err) { showMessage(err.message, 'error'); } finally { setLoading(false); }
+        }
+		
+
+        function renderAdminJobs() {
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition">
+                    <div class="flex items-center gap-3 mb-2">
+                        <button onclick="showView('admin-dashboard')" class="p-2 hover:bg-slate-100 rounded-full transition text-slate-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+                        <h1 class="text-2xl font-bold text-indigo-700">จัดการกระดานงาน / ธุรกิจ</h1>
+                    </div>
+                    <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs"><tr><th class="px-6 py-4">ประกาศ</th><th class="px-6 py-4">ผู้ลงประกาศ</th><th class="px-6 py-4 text-center">สถานะ</th><th class="px-6 py-4 text-right">จัดการ</th></tr></thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${jobList.map(j => `
+                                <tr>
+                                    <td class="px-6 py-4"><span class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-600 mr-2">${j.type === 'job' ? 'งาน' : 'ธุรกิจ'}</span><span class="font-bold text-sm">${j.title}</span></td>
+                                    <td class="px-6 py-4 text-sm">${j.author_name}</td>
+                                    <td class="px-6 py-4 text-center"><span class="px-3 py-1 rounded-full text-[10px] font-bold ${j.is_approved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${j.is_approved ? 'อนุมัติแล้ว' : 'รอตรวจสอบ'}</span></td>
+                                    <td class="px-6 py-4 text-right">
+                                        ${!j.is_approved ? `<button onclick="approveJob(${j.id})" class="text-green-600 font-bold text-xs mr-3 hover:underline">อนุมัติ</button>` : `<button onclick="hideJob(${j.id})" class="text-amber-600 font-bold text-xs mr-3 hover:underline">ซ่อน</button>`}
+                                        <button onclick="openEditJobModal(${j.id})" class="text-blue-500 font-bold text-xs mr-3 hover:underline">แก้ไข</button>
+                                        <button onclick="deleteJob(${j.id})" class="text-red-500 font-bold text-xs hover:underline">ลบ</button>
+                                    </td>
+                                </tr>`).join('')}
+                                ${jobList.length === 0 ? '<tr><td colspan="4" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูล</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+		async function approveJob(id) { setLoading(true); await supabaseClient.from('jobs').update({ is_approved: true }).eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); }
+        async function hideJob(id) { setLoading(true); await supabaseClient.from('jobs').update({ is_approved: false }).eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); }
+        async function deleteJob(id) { if(confirm('ลบประกาศนี้?')){ setLoading(true); await supabaseClient.from('jobs').delete().eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); } }
+        function updateStaffNav() {
+            if (currentUser) {
+                document.getElementById('staff-entry-btn').classList.add('hidden');
+                document.getElementById('alumni-login-btn').classList.add('hidden'); // ซ่อนปุ่มศิษย์เก่าถ้าแอดมินใช้งานอยู่
+                document.getElementById('staff-profile').classList.remove('hidden');
+                document.getElementById('staff-name').innerText = currentUser.name;
+            }
+        }
+        function updateAlumniNav() { 
+            if (currentAlumni) { 
+                document.getElementById('alumni-login-btn').classList.add('hidden');
+                document.getElementById('staff-entry-btn').classList.add('hidden'); // ซ่อนปุ่มแอดมินถ้าศิษย์เก่าใช้งานอยู่
+                document.getElementById('alumni-profile-btn').classList.remove('hidden'); 
+                document.getElementById('nav-alumni-name').innerText = currentAlumni.fullName; 
+                if(currentAlumni.photo) document.getElementById('nav-alumni-avatar').innerHTML = `<img src="${currentAlumni.photo}" class="w-full h-full object-cover">`;
+            } 
+        }
+        function logout() { localStorage.removeItem('current_staff_id'); location.reload(); }
+        function logoutAlumni() { localStorage.removeItem('current_alumni_id'); location.reload(); }
+        function setLoading(s) { document.getElementById('loader').classList.toggle('hidden', !s); document.getElementById('loader').classList.toggle('flex', s); }
+        function showMessage(t, type) { const div = document.createElement('div'); div.className = `fixed bottom-4 right-4 px-6 py-3 rounded-2xl text-white font-bold z-[1000] shadow-2xl transition transform translate-y-0 page-transition ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`; div.innerText = t; document.body.appendChild(div); setTimeout(() => { div.style.opacity='0'; setTimeout(()=>div.remove(), 500); }, 4000); }
+        function closeModal() { document.getElementById('modal-overlay').classList.replace('flex', 'hidden');
+        ['view-modal', 'add-staff-modal', 'add-news-modal', 'edit-modal', 'edit-footer-modal', 'alumni-edit-modal', 'add-job-modal'].forEach(id => document.getElementById(id).classList.add('hidden')); }
+    </script>
+</body>
+</html>
