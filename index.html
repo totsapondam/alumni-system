@@ -304,17 +304,36 @@
             <option value="พนักงานรัฐวิสาหกิจ">พนักงานรัฐวิสาหกิจ</option>
             <option value="อื่นๆ">อื่นๆ</option>`;
 
-        window.onload = async () => {// ดักจับว่ากลับมาจากการกดลิงก์รีเซ็ตรหัสผ่านแอดมินหรือไม่
+        window.onload = async () => {
+            // 1. ดักจับจาก URL โดยตรง (ชัวร์ที่สุด)
+            if (window.location.hash.includes('type=recovery')) {
+                setTimeout(() => {
+                    const overlay = document.getElementById('modal-overlay');
+                    const modal = document.getElementById('admin-new-pass-modal');
+                    if (overlay && modal) {
+                        overlay.classList.replace('hidden', 'flex');
+                        modal.classList.remove('hidden');
+                    }
+                }, 800);
+            }
+
+            // 2. ดักจับจากระบบของ Supabase
             supabaseClient.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'PASSWORD_RECOVERY') {
                     setTimeout(() => {
-                        document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
-                        document.getElementById('admin-new-pass-modal').classList.remove('hidden');
-                    }, 500); 
+                        const overlay = document.getElementById('modal-overlay');
+                        const modal = document.getElementById('admin-new-pass-modal');
+                        if (overlay && modal) {
+                            overlay.classList.replace('hidden', 'flex');
+                            modal.classList.remove('hidden');
+                        }
+                    }, 800); 
                 }
             });
+
             await syncData();
             await fetchSiteSettings();
+            
             const savedAlumniId = localStorage.getItem('current_alumni_id');
             if (savedAlumniId) {
                 currentAlumni = alumniData.find(a => a.id == savedAlumniId);
