@@ -953,15 +953,46 @@
                         <button onclick="showView('staff-register')" class="text-blue-600 font-bold hover:underline">สมัครขอสิทธิ์เจ้าหน้าที่</button>
                     </div>
                 </section>`;
+                
             document.getElementById('st-login-form').onsubmit = async (e) => {
                 e.preventDefault();
-                const user = staffUsers.find(u => u.email === document.getElementById('st-email').value && u.password === document.getElementById('st-pass').value);
-                if (user && user.status === 'active') {
-                    currentUser = user;
-                    localStorage.setItem('current_staff_id', user.id);
+                const email = document.getElementById('st-email').value;
+                const password = document.getElementById('st-pass').value;
+
+                setLoading(true);
+                try {
+                    // 1. ส่งอีเมลและรหัสผ่านไปให้ Supabase Auth ตรวจสอบ
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+
+                    if (error) throw new Error('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+
+                    // 2. ถ้าล็อกอินสำเร็จ ไปดึงข้อมูลชื่อและสิทธิ์จากตาราง staff
+                    const { data: staffData, error: staffError } = await supabaseClient
+                        .from('staff')
+                        .select('*')
+                        .eq('email', email)
+                        .single();
+
+                    if (staffError || !staffData || staffData.status !== 'active') {
+                        await supabaseClient.auth.signOut();
+                        throw new Error('บัญชีนี้ยังไม่ได้รับสิทธิ์ หรือรอการอนุมัติ');
+                    }
+
+                    // 3. สำเร็จ! พาเข้าสู่หน้า Dashboard
+                    currentUser = staffData;
+                    localStorage.setItem('current_staff_id', staffData.id);
                     updateStaffNav();
                     showView('admin-dashboard');
-                } else { showMessage('ข้อมูลไม่ถูกต้อง หรือรออนุมัติสิทธิ์', 'error'); }
+                    showMessage('เข้าสู่ระบบสำเร็จ', 'success');
+
+                } catch (err) {
+                    showMessage(err.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
             };
         }
 
@@ -1642,7 +1673,12 @@ async function handleAddStaff(event) {
                 if(currentAlumni.photo) document.getElementById('nav-alumni-avatar').innerHTML = `<img src="${currentAlumni.photo}" class="w-full h-full object-cover">`;
             } 
         }
-        function logout() { localStorage.removeItem('current_staff_id'); location.reload(); }
+        async function logout() {
+            // สั่งให้ Supabase ทำลายเซสชันการล็อกอิน
+            await supabaseClient.auth.signOut(); 
+            localStorage.removeItem('current_staff_id');
+            location.reload(); 
+        }
         function logoutAlumni() { localStorage.removeItem('current_alumni_id'); location.reload(); }
         function setLoading(s) { document.getElementById('loader').classList.toggle('hidden', !s); document.getElementById('loader').classList.toggle('flex', s); }
         function showMessage(t, type) { const div = document.createElement('div'); div.className = `fixed bottom-4 right-4 px-6 py-3 rounded-2xl text-white font-bold z-[1000] shadow-2xl transition transform translate-y-0 page-transition ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`; div.innerText = t; document.body.appendChild(div); setTimeout(() => { div.style.opacity='0'; setTimeout(()=>div.remove(), 500); }, 4000); }
