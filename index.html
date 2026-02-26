@@ -1380,45 +1380,45 @@
         function viewNewsDetails(id) {
             const n = newsList.find(item => item.id === id); if (!n) return;
             
-            // เปลี่ยนหัว Modal ให้ดูเข้ากับเนื้อหา
+            // ขยายขนาดหน้าต่าง (Modal) ให้กว้างขึ้นเพื่อรองรับ 2 คอลัมน์
+            const modal = document.getElementById('view-modal');
+            modal.classList.remove('max-w-2xl');
+            modal.classList.add('max-w-5xl'); 
+            
             document.getElementById('view-modal-title').innerText = 'รายละเอียดประกาศ';
             
-            // 1. ดีไซน์วันที่ใหม่ ให้เป็น Badge สวยๆ มีไอคอนปฏิทิน
-            let dateHtml = n.date ? `
-                <div class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-4 border border-blue-100 shadow-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    กำหนดการ: ${formatNewsDate(n.date, n.end_date)}
-                </div>` : '';
-            
-            // 2. ดีไซน์ปุ่มลิงก์ใหม่ ให้เป็นปุ่มที่ดูน่ากด มีไอคอนลูกศร
+            // สร้างปุ่มลิงก์สีแดง พร้อมไอคอนลูกศรแบบในรูป
             let linkHtml = n.link ? `
-                <div class="mt-8 pt-6 border-t border-slate-100">
-                    <a href="${n.link}" target="_blank" class="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-700 hover:-translate-y-1 transition duration-300 shadow-lg shadow-blue-200/50">
-                        <span>อ่านเพิ่มเติม / ไปที่หน้าเว็บไซต์</span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                <div class="mt-6 pt-4">
+                    <a href="${n.link}" target="_blank" class="inline-flex items-center gap-2 bg-[#d3474f] text-white px-6 py-3.5 rounded-lg font-bold hover:bg-[#b03a42] hover:-translate-y-1 transition duration-300 shadow-md">
+                        <span>คลิกเพื่ออ่านรายละเอียด / สมัคร</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     </a>
                 </div>` : '';
-            
-            // 3. จัดกรอบรูปภาพให้กว้างและแสดงผลไม่โดนตัด (object-contain) พร้อมพื้นหลังสีเทาอ่อน
+                
+            // จัดการรูปภาพให้อยู่เต็มพื้นที่โดยไม่โดนตัด
             let imgHtml = n.image ? `
-                <div class="relative w-full h-64 sm:h-80 md:h-[400px] mb-8 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center p-2">
-                    <img src="${n.image}" class="max-w-full max-h-full object-contain drop-shadow-sm" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
+                <div class="w-full h-full flex items-center justify-center relative">
+                    <img src="${n.image}" class="w-full h-auto max-h-[70vh] object-contain drop-shadow-lg" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
                 </div>` : '';
 
-            // 4. ประกอบร่างทั้งหมดเข้าด้วยกัน
+            // ถ้ามีรูปให้แบ่ง 2 คอลัมน์ ถ้าไม่มีรูปให้แสดงคอลัมน์เดียวตรงกลาง
+            const layoutClass = n.image ? "grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" : "flex flex-col";
+
+            // ประกอบร่าง
             document.getElementById('view-content').innerHTML = `
-                <div class="flex flex-col">
-                    ${imgHtml}
-                    <div class="px-2 md:px-4">
-                        ${dateHtml}
-                        <h3 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 leading-tight">${n.title}</h3>
-                        <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-base sm:text-lg">${n.content}</div>
+                <div class="${layoutClass}">
+                    <div class="order-2 lg:order-1 flex flex-col justify-center">
+                        <h3 class="text-2xl lg:text-3xl font-extrabold text-[#0e2a47] mb-6 leading-tight">${n.title}</h3>
+                        <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-sm lg:text-base space-y-4 font-medium">${n.content}</div>
                         ${linkHtml}
                     </div>
+                    
+                    ${n.image ? `<div class="order-1 lg:order-2">${imgHtml}</div>` : ''}
                 </div>`;
                 
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
-            document.getElementById('view-modal').classList.remove('hidden');
+            modal.classList.remove('hidden');
         }
 
         function openAddNewsModal() {
