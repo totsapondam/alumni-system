@@ -1380,41 +1380,41 @@
         function viewNewsDetails(id) {
             const n = newsList.find(item => item.id === id); if (!n) return;
             
-            // ขยายขนาดหน้าต่าง (Modal) ให้กว้างขึ้นเพื่อรองรับ 2 คอลัมน์
+            // 1. ขยายขนาดหน้าต่าง (Modal) ให้กว้างขึ้นเพื่อรองรับ 2 คอลัมน์
             const modal = document.getElementById('view-modal');
             modal.classList.remove('max-w-2xl');
-            modal.classList.add('max-w-5xl'); 
+            modal.classList.add('max-w-6xl'); 
             
             document.getElementById('view-modal-title').innerText = 'รายละเอียดประกาศ';
             
-            // สร้างปุ่มลิงก์สีแดง พร้อมไอคอนลูกศรแบบในรูป
+            // 2. สร้างปุ่มลิงก์สีแดง พร้อมไอคอนลูกศรแบบในรูป
             let linkHtml = n.link ? `
-                <div class="mt-6 pt-4">
-                    <a href="${n.link}" target="_blank" class="inline-flex items-center gap-2 bg-[#d3474f] text-white px-6 py-3.5 rounded-lg font-bold hover:bg-[#b03a42] hover:-translate-y-1 transition duration-300 shadow-md">
-                        <span>คลิกเพื่ออ่านรายละเอียด / สมัคร</span>
+                <div class="mt-8">
+                    <a href="${n.link}" target="_blank" class="inline-flex items-center gap-2 bg-[#ce3e47] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#b03038] shadow-md transition transform hover:-translate-y-1">
+                        <span>สมัครเรียนตอนนี้ ปีการศึกษา 2569</span>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     </a>
                 </div>` : '';
-                
-            // จัดการรูปภาพให้อยู่เต็มพื้นที่โดยไม่โดนตัด
+            
+            // 3. จัดการรูปภาพให้อยู่ฝั่งขวา
             let imgHtml = n.image ? `
-                <div class="w-full h-full flex items-center justify-center relative">
+                <div class="w-full flex justify-center">
                     <img src="${n.image}" class="w-full h-auto max-h-[70vh] object-contain drop-shadow-lg" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
                 </div>` : '';
 
-            // ถ้ามีรูปให้แบ่ง 2 คอลัมน์ ถ้าไม่มีรูปให้แสดงคอลัมน์เดียวตรงกลาง
-            const layoutClass = n.image ? "grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" : "flex flex-col";
+            // 4. กำหนดเลย์เอาต์: ถ้ามีรูปให้แบ่ง 2 คอลัมน์ (ซ้ายข้อความ ขวารูป)
+            const layoutClass = n.image ? "grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start" : "flex flex-col";
 
-            // ประกอบร่าง
+            // 5. ประกอบร่างทั้งหมดเข้าด้วยกัน
             document.getElementById('view-content').innerHTML = `
                 <div class="${layoutClass}">
-                    <div class="order-2 lg:order-1 flex flex-col justify-center">
+                    <div class="order-2 lg:order-1 flex flex-col pt-2">
                         <h3 class="text-2xl lg:text-3xl font-extrabold text-[#0e2a47] mb-6 leading-tight">${n.title}</h3>
-                        <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-sm lg:text-base space-y-4 font-medium">${n.content}</div>
+                        <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-sm lg:text-base font-medium space-y-2">${n.content}</div>
                         ${linkHtml}
                     </div>
                     
-                    ${n.image ? `<div class="order-1 lg:order-2">${imgHtml}</div>` : ''}
+                    ${n.image ? `<div class="order-1 lg:order-2 mb-6 lg:mb-0">${imgHtml}</div>` : ''}
                 </div>`;
                 
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
