@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -191,11 +192,16 @@
                 <input type="hidden" name="id">
                 <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">หัวข้อข่าว</label><input type="text" name="title" required class="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"></div>
                 <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">รายละเอียด</label><textarea name="content" required class="w-full border rounded-xl px-4 py-3 h-32 outline-none focus:ring-2 focus:ring-green-500"></textarea></div>
+                
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">วันที่จัดงาน/เริ่ม</label><input type="date" name="date" required class="w-full border rounded-xl px-4 py-3 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">วันที่จัดงาน (ถ้ามี)</label><input type="date" name="date" class="w-full border rounded-xl px-4 py-3 outline-none"></div>
                     <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">วันที่สิ้นสุด</label><input type="date" name="end_date" class="w-full border rounded-xl px-4 py-3 outline-none"></div>
                 </div>
+                
                 <div><label class="text-xs font-bold text-slate-500 uppercase ml-1">URL รูปภาพ</label><input type="url" name="image" placeholder="https://..." class="w-full border rounded-xl px-4 py-3 outline-none"></div>
+                
+                <div><label class="text-xs font-bold text-blue-600 uppercase ml-1">ลิงก์อ่านเพิ่มเติม (ถ้ามี)</label><input type="url" name="link" placeholder="https://..." class="w-full border border-blue-200 bg-blue-50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"></div>
+
                 <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer transition hover:bg-slate-100">
                     <input type="checkbox" name="showOnHome" class="w-5 h-5 rounded text-green-600 focus:ring-green-500">
                     <span class="text-sm font-bold text-slate-700">แสดงข่าวบนหน้าหลัก</span>
@@ -534,6 +540,7 @@
         }
 
         function formatNewsDate(start, end) {
+            if (!start) return '';
             const options = { year: 'numeric', month: 'short', day: 'numeric' };
             const d1 = new Date(start).toLocaleDateString('th-TH', options);
             if (end && end !== start) {
@@ -555,11 +562,11 @@
                     </div>
                     ${pinnedNews.length > 0 ? `<div class="mt-20 grid md:grid-cols-3 gap-6 text-left max-w-6xl w-full px-4">
                         ${pinnedNews.map(n => `
-                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition group" onclick="viewNewsDetails(${n.id})">
-                            <div class="h-44 overflow-hidden"><img src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'"></div>
-                            <div class="p-6">
-                                <p class="text-xs text-blue-600 font-bold mb-1">${formatNewsDate(n.date, n.end_date)}</p>
-                                <h3 class="font-bold text-lg mb-2 line-clamp-1">${n.title}</h3>
+                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
+                            <div class="h-44 overflow-hidden bg-slate-100 flex-shrink-0"><img src="${n.image}" class="w-full h-full object-contain transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'"></div>
+                            <div class="p-6 flex-grow flex flex-col">
+                                ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-1">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
+                                <h3 class="font-bold text-lg mb-2 line-clamp-2">${n.title}</h3>
                                 <p class="text-slate-500 text-sm line-clamp-2">${n.content}</p>
                             </div>
                         </div>`).join('')}
@@ -1329,11 +1336,11 @@
                     ${newsList.length === 0 ? '<div class="text-center py-20 text-slate-400">ยังไม่มีข่าวสารในขณะนี้</div>' :
                         `<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                             ${newsList.map(n => `
-                                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden group hover:shadow-lg transition cursor-pointer" onclick="viewNewsDetails(${n.id})">
-                                    <div class="h-48 overflow-hidden bg-slate-100"><img src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>
-                                    <div class="p-6">
-                                        <div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wider">${formatNewsDate(n.date, n.end_date)}</div>
-                                        <h3 class="font-bold text-lg mb-2 text-slate-800 line-clamp-1">${n.title}</h3>
+                                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden group hover:shadow-lg transition cursor-pointer flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
+                                    <div class="h-48 overflow-hidden bg-slate-100 flex-shrink-0"><img src="${n.image}" class="w-full h-full object-contain transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>
+                                    <div class="p-6 flex-grow flex flex-col">
+                                        ${n.date ? `<div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wider">${formatNewsDate(n.date, n.end_date)}</div>` : ''}
+                                        <h3 class="font-bold text-lg mb-2 text-slate-800 line-clamp-2">${n.title}</h3>
                                         <p class="text-slate-500 text-sm line-clamp-3">${n.content}</p>
                                     </div>
                                 </div>
@@ -1372,14 +1379,44 @@
 
         function viewNewsDetails(id) {
             const n = newsList.find(item => item.id === id); if (!n) return;
-            document.getElementById('view-modal-title').innerText = 'ข่าวประชาสัมพันธ์';
+            
+            // เปลี่ยนหัว Modal ให้ดูเข้ากับเนื้อหา
+            document.getElementById('view-modal-title').innerText = 'รายละเอียดประกาศ';
+            
+            // 1. ดีไซน์วันที่ใหม่ ให้เป็น Badge สวยๆ มีไอคอนปฏิทิน
+            let dateHtml = n.date ? `
+                <div class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-4 border border-blue-100 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    กำหนดการ: ${formatNewsDate(n.date, n.end_date)}
+                </div>` : '';
+            
+            // 2. ดีไซน์ปุ่มลิงก์ใหม่ ให้เป็นปุ่มที่ดูน่ากด มีไอคอนลูกศร
+            let linkHtml = n.link ? `
+                <div class="mt-8 pt-6 border-t border-slate-100">
+                    <a href="${n.link}" target="_blank" class="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-700 hover:-translate-y-1 transition duration-300 shadow-lg shadow-blue-200/50">
+                        <span>อ่านเพิ่มเติม / ไปที่หน้าเว็บไซต์</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                </div>` : '';
+            
+            // 3. จัดกรอบรูปภาพให้กว้างและแสดงผลไม่โดนตัด (object-contain) พร้อมพื้นหลังสีเทาอ่อน
+            let imgHtml = n.image ? `
+                <div class="relative w-full h-64 sm:h-80 md:h-[400px] mb-8 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center p-2">
+                    <img src="${n.image}" class="max-w-full max-h-full object-contain drop-shadow-sm" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
+                </div>` : '';
+
+            // 4. ประกอบร่างทั้งหมดเข้าด้วยกัน
             document.getElementById('view-content').innerHTML = `
-                <img src="${n.image}" class="w-full rounded-2xl h-72 object-cover shadow-sm mb-6" onerror="this.src='https://via.placeholder.com/800x400?text=News+Detail'">
-                <div>
-                    <p class="text-xs text-blue-600 font-bold uppercase tracking-widest mb-2">กำหนดการ: ${formatNewsDate(n.date, n.end_date)}</p>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-4 leading-tight">${n.title}</h3>
-                    <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-lg border-t pt-6">${n.content}</div>
+                <div class="flex flex-col">
+                    ${imgHtml}
+                    <div class="px-2 md:px-4">
+                        ${dateHtml}
+                        <h3 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 leading-tight">${n.title}</h3>
+                        <div class="whitespace-pre-wrap text-slate-600 leading-relaxed text-base sm:text-lg">${n.content}</div>
+                        ${linkHtml}
+                    </div>
                 </div>`;
+                
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex');
             document.getElementById('view-modal').classList.remove('hidden');
         }
@@ -1423,11 +1460,26 @@ async function handleAddStaff(event) {
 }
         function openEditNewsModal(id) {
             const n = newsList.find(item => item.id === id); if(!n) return; const f = document.getElementById('news-form');
-            f.elements['id'].value = n.id; f.elements['title'].value = n.title; f.elements['content'].value = n.content; f.elements['date'].value = n.date; f.elements['end_date'].value = n.end_date || ''; f.elements['image'].value = n.image; f.elements['showOnHome'].checked = n.showOnHome;
+            f.elements['id'].value = n.id; f.elements['title'].value = n.title; f.elements['content'].value = n.content; 
+            f.elements['date'].value = n.date || ''; f.elements['end_date'].value = n.end_date || ''; f.elements['image'].value = n.image || ''; 
+            if(f.elements['link']) f.elements['link'].value = n.link || '';
+            f.elements['showOnHome'].checked = n.showOnHome;
             document.getElementById('news-modal-title').innerText = 'แก้ไขข่าวสาร'; document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('add-news-modal').classList.remove('hidden');
         }
         async function handleSaveNews(e) {
-            e.preventDefault(); const f = new FormData(e.target); const id = f.get('id'); const p = Object.fromEntries(f); p.showOnHome = f.get('showOnHome') === 'on'; delete p.id; setLoading(true); try { if(id) await supabaseClient.from('news').update(p).eq('id', id); else await supabaseClient.from('news').insert([p]); closeModal(); await syncData(); renderAdminNews(); } catch(err) { alert(err.message); } finally { setLoading(false); }
+            e.preventDefault(); const f = new FormData(e.target); const id = f.get('id'); const p = Object.fromEntries(f); p.showOnHome = f.get('showOnHome') === 'on'; 
+            
+            // ป้องกัน Error ฐานข้อมูลเมื่อไม่ได้ใส่วันที่และลิงก์
+            if(!p.date) p.date = null;
+            if(!p.end_date) p.end_date = null;
+            if(!p.link) p.link = null;
+
+            delete p.id; setLoading(true); 
+            try { 
+                if(id) await supabaseClient.from('news').update(p).eq('id', id); 
+                else await supabaseClient.from('news').insert([p]); 
+                closeModal(); await syncData(); renderAdminNews(); 
+            } catch(err) { alert(err.message); } finally { setLoading(false); }
         }
 
         function openEditFooterModal() {
