@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -246,7 +245,7 @@
             </form>
         </div>
 
-    </div> ```
+    </div>
 
     <!-- Scripts -->
     <script>
@@ -255,6 +254,7 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let alumniData = [];
+		
         let staffUsers = [];
         let newsList = [];
         let contactMessages = [];
@@ -270,6 +270,18 @@
 		let dirCurrentPage = 1;
         const dirItemsPerPage = 21;
         let dirFilteredData = [];
+		function escapeHTML(str) {
+    if (!str) return '';
+    return str.toString().replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
 
         // Default Config
         let siteConfig = {
@@ -361,24 +373,36 @@
         };
 
         async function syncData() {
-            setLoading(true);
-            try {
-                const { data: alumni } = await supabaseClient.from('alumni').select('*');
-                alumniData = alumni || [];
+    setLoading(true);
+    try {
+        // ดึงเฉพาะข้อมูลที่เผยแพร่สาธารณะได้
+        const { data: news } = await supabaseClient.from('news').select('*').order('date', { ascending: false });
+        newsList = news || [];
 
-                const { data: staff } = await supabaseClient.from('staff').select('*');
-                staffUsers = staff || [];
+        const { data: jobs } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
+        jobList = jobs || [];
 
-                const { data: news } = await supabaseClient.from('news').select('*').order('date', { ascending: false });
-                newsList = news || [];
+        // 🛡️ ป้องกันข้อมูลรั่วไหล: ดึงข้อมูลศิษย์เก่าและข้อมูลหลังบ้าน "เฉพาะเมื่อเป็น Admin" เท่านั้น
+        if (currentUser && ['admin', 'super-admin'].includes(currentUser.role)) {
+            // แอดมินดึงข้อมูลเต็มได้
+            const { data: alumni } = await supabaseClient.from('alumni').select('*');
+            alumniData = alumni || [];
 
-                const { data: msgs } = await supabaseClient.from('contacts').select('*').order('created_at', { ascending: false });
-                contactMessages = msgs || [];
-				
-				const { data: jobs } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
-                jobList = jobs || [];
-            } catch (err) { console.warn(err); } finally { setLoading(false); }
+            const { data: staff } = await supabaseClient.from('staff').select('*');
+            staffUsers = staff || [];
+
+            const { data: msgs } = await supabaseClient.from('contacts').select('*').order('created_at', { ascending: false });
+            contactMessages = msgs || [];
+        } else {
+            // 🛡️ ถ้าเป็นคนทั่วไป หรือ ศิษย์เก่า ให้ดึงเฉพาะข้อมูลทำเนียบ (ไม่มีเบอร์/อีเมล)
+            const { data: safeAlumni } = await supabaseClient.rpc('get_safe_directory');
+            alumniData = safeAlumni || [];
+            
+            staffUsers = [];
+            contactMessages = [];
         }
+    } catch (err) { console.warn(err); } finally { setLoading(false); }
+}
 
         async function fetchSiteSettings() {
             try {
@@ -738,40 +762,59 @@
                     </div>
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
                         
-                        <div class="flex flex-col lg:flex-row gap-4 mb-6 items-start lg:items-center flex-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <div class="relative flex-grow w-full lg:w-auto min-w-[200px]">
-                                <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                                <input type="text" id="search-input" onkeyup="filterAlumni()" placeholder="ค้นหาชื่อ, รหัสนักศึกษา..." class="w-full pl-11 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                        <div class="flex flex-col lg:flex-row gap-4 mb-6 items-start lg:items-end flex-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            
+                            <!-- Search Box -->
+                            <div class="flex-grow w-full lg:w-auto min-w-[200px] flex flex-col gap-1.5">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase px-1">ค้นหาข้อมูล</label>
+                                <div class="relative">
+                                    <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    <input type="text" id="search-input" onkeyup="filterAlumni()" placeholder="ค้นหาชื่อ, รหัส, ที่ปรึกษา, อาชีพ, บริษัท..." class="w-full pl-11 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                                </div>
                             </div>
                             
-                            <div class="w-full lg:w-auto shrink-0 flex gap-2 flex-wrap">
-                                <select id="filter-center" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
-                                    ${centerOptions.replace('<option value="">-- เลือกศูนย์ --</option>', '<option value="">ทุกศูนย์การเรียนรู้</option>')}
-                                </select>
+                            <!-- Filters Box -->
+                            <div class="w-full lg:w-auto shrink-0 flex gap-3 flex-wrap">
                                 
-                                <select id="filter-course" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
-                                    <option value="">ทุกหลักสูตร</option>
-                                    <option value="IMM">IMM</option>
-                                    <option value="DMTM">DMTM</option>
-                                    <option value="CIMM">CIMM</option>
-                                </select>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase px-1">ศูนย์การเรียนรู้</label>
+                                    <select id="filter-center" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                        ${centerOptions.replace('<option value="">-- เลือกศูนย์ --</option>', '<option value="">ทุกศูนย์การเรียนรู้</option>')}
+                                    </select>
+                                </div>
+                                
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase px-1">หลักสูตร</label>
+                                    <select id="filter-course" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                        <option value="">ทุกหลักสูตร</option>
+                                        <option value="IMM">IMM</option>
+                                        <option value="DMTM">DMTM</option>
+                                        <option value="CIMM">CIMM</option>
+                                    </select>
+                                </div>
 
-                                <select id="filter-year" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
-                                    <option value="">ทุกปีการศึกษาที่จบ</option>
-                                    ${[...new Set(alumniData.map(a => a.gradYear).filter(Boolean))].sort((a,b)=>b-a).map(year => `<option value="${year}">${year}</option>`).join('')}
-                                </select>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase px-1">ปีที่จบ</label>
+                                    <select id="filter-year" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600">
+                                        <option value="">ทุกปีการศึกษา</option>
+                                        ${[...new Set(alumniData.map(a => a.gradYear).filter(Boolean))].sort((a,b)=>b-a).map(year => `<option value="${year}">${year}</option>`).join('')}
+                                    </select>
+                                </div>
 
-                                <select id="filter-job" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600 max-w-[160px]">
-                                    <option value="">ทุกสายงาน</option>
-                                    <option value="ข้าราชการ/พนักงานของรัฐ">ข้าราชการ/รัฐ</option>
-                                    <option value="พนักงานบริษัทเอกชน">เอกชน</option>
-                                    <option value="เจ้าของธุรกิจ/ธุรกิจส่วนตัว">ธุรกิจส่วนตัว</option>
-                                    <option value="อาชีพอิสระ (Freelance)">อิสระ (Freelance)</option>
-                                    <option value="พนักงานรัฐวิสาหกิจ">รัฐวิสาหกิจ</option>
-                                </select>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase px-1">สายงาน / อาชีพ</label>
+                                    <select id="filter-job" onchange="filterAlumni()" class="border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white text-slate-600 min-w-[140px]">
+                                        <option value="">ทุกสายงาน</option>
+                                        <option value="ข้าราชการ/พนักงานของรัฐ">ข้าราชการ/รัฐ</option>
+                                        <option value="พนักงานบริษัทเอกชน">เอกชน</option>
+                                        <option value="เจ้าของธุรกิจ/ธุรกิจส่วนตัว">ธุรกิจส่วนตัว</option>
+                                        <option value="อาชีพอิสระ (Freelance)">อิสระ (Freelance)</option>
+                                        <option value="พนักงานรัฐวิสาหกิจ">รัฐวิสาหกิจ</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="w-full lg:w-auto ml-auto flex flex-wrap gap-2">
+                            <div class="w-full lg:w-auto ml-auto flex flex-wrap gap-2 lg:pb-0.5">
                                 <button onclick="exportToCSV('filtered')" class="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-sm text-sm whitespace-nowrap">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                                     Export เฉพาะที่กรอง
@@ -811,7 +854,18 @@
             const jobFilter = document.getElementById('filter-job')?.value || '';
             
             filteredAlumniData = alumniData.filter(a => {
-                const textMatch = (a.fullName||'').toLowerCase().includes(q) || (a.studentId||'').includes(q);
+                // เปลี่ยนการค้นหาให้ครอบคลุมทุกคีย์เวิร์ด
+                const textMatch = q === '' || 
+                    (a.fullName || '').toLowerCase().includes(q) || 
+                    (a.studentId || '').toLowerCase().includes(q) ||
+                    (a.advisor || '').toLowerCase().includes(q) ||
+                    (a.job || '').toLowerCase().includes(q) ||
+                    (a.position || '').toLowerCase().includes(q) ||
+                    (a.company || '').toLowerCase().includes(q) ||
+                    (a.nickname || '').toLowerCase().includes(q) ||
+                    (a.email || '').toLowerCase().includes(q) ||
+                    (a.phone || '').toLowerCase().includes(q);
+
                 const centerMatch = centerFilter === '' || (a.center && a.center.includes(centerFilter));
                 const courseMatch = courseFilter === '' || (a.course && a.course.includes(courseFilter));
                 const yearMatch = yearFilter === '' || a.gradYear == yearFilter;
@@ -848,7 +902,7 @@
             tbody.innerHTML = pageData.map(a => `
                 <tr class="hover:bg-slate-50/50 transition">
                     <td class="p-4"><div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-100 flex items-center justify-center">${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}</div></td>
-                    <td class="p-4 font-bold text-sm cursor-pointer hover:text-blue-600 transition" onclick="viewAlumniDetails(${a.id})">${a.prefix || ''}${a.fullName}</td>
+                    <td class="p-4 font-bold text-sm cursor-pointer hover:text-blue-600 transition" onclick="viewAlumniDetails(${a.id})">${escapeHTML(a.prefix || '')}${escapeHTML(a.fullName)}</td>
                     <td class="p-4 text-xs font-medium text-slate-500">${a.center}<br><span class="font-mono text-[10px]">${a.studentId}</span></td>
                     <td class="p-4 text-right"><div class="flex justify-end gap-2"><button onclick="openAdminEdit(${a.id})" class="text-blue-500 hover:underline text-xs font-bold">แก้ไข</button><button onclick="deleteAlumni(${a.id})" class="text-red-400 hover:underline text-xs font-bold">ลบ</button></div></td>
                 </tr>`).join('');
@@ -979,17 +1033,50 @@
                         <div class="w-32 h-32 rounded-full mx-auto bg-white mb-4 flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
                             ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : '<svg class="w-16 h-16 text-slate-200" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>'}
                         </div>
-                        <h3 class="font-bold text-xl text-slate-800">${a.prefix || ''}${a.fullName}</h3><p class="text-blue-600 font-bold tracking-wider">${a.studentId}</p><p class="text-slate-400 text-xs mt-1">ชื่อเล่น: ${a.nickname || '-'}</p>
+                        <h3 class="font-bold text-xl text-slate-800">${escapeHTML(a.prefix || '')}${escapeHTML(a.fullName)}</h3><p class="text-blue-600 font-bold tracking-wider">${escapeHTML(a.studentId)}</p><p class="text-slate-400 text-xs mt-1">ชื่อเล่น: ${escapeHTML(a.nickname || '-')}</p>
                     </div>
                     <div class="md:w-2/3 space-y-4 text-sm">
-                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">ประวัติการศึกษา</p><div class="grid grid-cols-2 gap-y-2"><p class="col-span-2"><strong>ศูนย์ฯ:</strong> ${a.center}</p><p><strong>หลักสูตร:</strong> ${a.course}</p><p><strong>ปีที่จบ:</strong> พ.ศ. ${a.gradYear}</p><p class="col-span-2"><strong>อาจารย์ที่ปรึกษา:</strong> <span class="text-blue-600 font-bold">${a.advisor || '-'}</span></p></div></div>
-                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">การทำงานและการติดต่อ</p><div class="space-y-1.5"><p><strong>สายงาน:</strong> ${a.job || '-'}</p><p><strong>ตำแหน่ง:</strong> ${a.position || '-'}</p><p><strong>บริษัท:</strong> ${a.company || '-'}</p><hr class="my-2 border-slate-50"><p><strong>เบอร์โทร:</strong> ${a.phone}</p><p><strong>อีเมล:</strong> ${a.email}</p><p><strong>ที่อยู่:</strong> ${a.address || '-'}</p></div></div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">ประวัติการศึกษา</p><div class="grid grid-cols-2 gap-y-2"><p class="col-span-2"><strong>ศูนย์ฯ:</strong> ${escapeHTML(a.center)}</p><p><strong>หลักสูตร:</strong> ${escapeHTML(a.course)}</p><p><strong>ปีที่จบ:</strong> พ.ศ. ${escapeHTML(a.gradYear)}</p><p class="col-span-2"><strong>อาจารย์ที่ปรึกษา:</strong> <span class="text-blue-600 font-bold">${escapeHTML(a.advisor || '-')}</span></p></div></div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">การทำงานและการติดต่อ</p><div class="space-y-1.5"><p><strong>สายงาน:</strong> ${escapeHTML(a.job || '-')}</p><p><strong>ตำแหน่ง:</strong> ${escapeHTML(a.position || '-')}</p><p><strong>บริษัท:</strong> ${escapeHTML(a.company || '-')}</p><hr class="my-2 border-slate-50"><p><strong>เบอร์โทร:</strong> ${escapeHTML(a.phone)}</p><p><strong>อีเมล:</strong> ${escapeHTML(a.email)}</p><p><strong>ที่อยู่:</strong> ${escapeHTML(a.address || '-')}</p></div></div>
                     </div>
                 </div>`;
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('view-modal').classList.remove('hidden');
         }
 
-        async function deleteAlumni(id) { if(confirm('ลบข้อมูลศิษย์เก่าถาวร?')) { setLoading(true); await supabaseClient.from('alumni').delete().eq('id', id); await syncData(); renderAdminList(); setLoading(false); } }
+        async function deleteAlumni(id) {
+    if (confirm('ยืนยันการลบข้อมูลศิษย์เก่าถาวร? (ระบบจะลบรูปภาพประจำตัวออกจากเซิร์ฟเวอร์ด้วย)')) {
+        setLoading(true);
+        try {
+            // 1. ค้นหาข้อมูลศิษย์เก่าที่จะลบ เพื่อเอา URL รูปภาพ
+            const targetAlumni = alumniData.find(d => d.id === id);
+
+            // 2. เช็คว่ามีรูปภาพไหม และเป็นรูปที่อัปโหลดเข้า Supabase จริงหรือไม่
+            if (targetAlumni && targetAlumni.photo && targetAlumni.photo.includes('supabase.co')) {
+                // ตัวอย่าง URL: .../storage/v1/object/public/profiles/170000_abc.jpg
+                // เราต้องหั่น URL ด้วย '/' แล้วเอาส่วนก้อนสุดท้ายมา ซึ่งก็คือ "ชื่อไฟล์"
+                const urlParts = targetAlumni.photo.split('/');
+                const fileName = urlParts[urlParts.length - 1];
+
+                // 3. สั่งลบไฟล์ออกจาก Storage bucket ชื่อ 'profiles'
+                const { error: storageError } = await supabaseClient.storage.from('profiles').remove([fileName]);
+                if (storageError) console.warn('ลบรูปภาพไม่สำเร็จ:', storageError);
+            }
+
+            // 4. ลบข้อมูลออกจากฐานข้อมูลตาราง alumni
+            const { error: dbError } = await supabaseClient.from('alumni').delete().eq('id', id);
+            if (dbError) throw dbError;
+
+            showMessage('ลบข้อมูลและรูปภาพเรียบร้อยแล้ว', 'success');
+            await syncData(); 
+            renderAdminList();
+
+        } catch (err) {
+            showMessage('เกิดข้อผิดพลาดในการลบ: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    }
+}
 
         // --- Auth Sections ---
         function renderStaffLogin() {
@@ -1069,17 +1156,39 @@
                     </div>
                 </section>`;
             document.getElementById('st-reg-form').onsubmit = async (e) => {
-                e.preventDefault();
-                const p = Object.fromEntries(new FormData(e.target));
-                p.status = 'pending'; p.role = 'admin';
-                setLoading(true);
-                try {
-                    const { error } = await supabaseClient.from('staff').insert([p]);
-                    if (error) throw error;
-                    showMessage('ส่งคำขอสมัครสำเร็จ รอแอดมินอนุมัติ', 'success');
-                    showView('staff-login'); await syncData();
-                } catch (err) { showMessage(err.message, 'error'); } finally { setLoading(false); }
-            };
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const email = form.get('email');
+    const password = form.get('password');
+    const name = form.get('name');
+
+    setLoading(true);
+    try {
+        // 1. สร้างบัญชีผู้ใช้ในระบบ Security Auth ของ Supabase ก่อน
+        const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+        });
+        if (authError) throw authError;
+
+        // 2. บันทึกข้อมูลโปรไฟล์ลงตาราง Staff รอการอนุมัติ
+        const payload = {
+            name: name,
+            email: email,
+            status: 'pending', 
+            role: 'admin'
+        };
+        const { error: dbError } = await supabaseClient.from('staff').insert([payload]);
+        if (dbError) throw dbError;
+
+        showMessage('ส่งคำขอสมัครสำเร็จ รอแอดมินอนุมัติ', 'success');
+        showView('staff-login'); 
+    } catch (err) { 
+        showMessage(err.message, 'error'); 
+    } finally { 
+        setLoading(false); 
+    }
+};
         }
 
         function renderAlumniLogin() {
@@ -1092,13 +1201,35 @@
                         <button class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition transform active:scale-95">เข้าสู่ระบบ</button>
                     </form>
                 </section>`;
-            document.getElementById('al-login-form').onsubmit = (e) => {
-                e.preventDefault();
-                const sid = document.getElementById('l-sid').value; const phone = document.getElementById('l-phone').value;
-                const found = alumniData.find(a => a.studentId === sid && a.phone === phone);
-                if (found) { currentAlumni = found; localStorage.setItem('current_alumni_id', found.id); updateAlumniNav(); showView('alumni-profile'); showMessage('ยินดีต้อนรับ คุณ ' + found.fullName, 'success'); }
-                else { showMessage('ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบรหัสและเบอร์โทร', 'error'); }
-            };
+            document.getElementById('al-login-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const sid = document.getElementById('l-sid').value; 
+    const phone = document.getElementById('l-phone').value;
+    
+    setLoading(true);
+    try {
+        // 🛡️ เรียกใช้ฟังก์ชัน Login หลังบ้านที่ปลอดภัยสุดๆ
+        const { data, error } = await supabaseClient.rpc('login_alumni', {
+            p_student_id: sid,
+            p_phone: phone
+        });
+
+        // ฟังก์ชันจะคืนค่าเป็น Array ถ้าความยาวเป็น 0 แปลว่าไม่เจอ
+        if (error || !data || data.length === 0) throw new Error('ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบรหัสและเบอร์โทร');
+
+        const foundAlumni = data[0]; // เอาข้อมูลคนแรกที่เจอ
+        currentAlumni = foundAlumni; 
+        localStorage.setItem('current_alumni_id', foundAlumni.id); 
+        updateAlumniNav(); 
+        showView('alumni-profile'); 
+        showMessage('ยินดีต้อนรับ คุณ ' + foundAlumni.fullName, 'success');
+        
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+};
         }
 
         function renderAlumniProfile() {
@@ -1311,7 +1442,7 @@
                             ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : `<svg class="w-8 h-8 m-4 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>`}
                         </div>
                         <div class="overflow-hidden w-full">
-                            <h3 class="font-bold text-slate-800 text-lg truncate">${a.prefix||''}${a.fullName} ${a.nickname ? `(${a.nickname})` : ''}</h3>
+                            <h3 class="font-bold text-slate-800 text-lg truncate">${escapeHTML(a.prefix||'')}${escapeHTML(a.fullName)} ${a.nickname ? `(${a.nickname})` : ''}</h3>
                             <p class="text-sm text-indigo-600 font-bold tracking-wider">${a.studentId}</p>
                             <p class="text-xs text-slate-500 mt-1 truncate">หลักสูตร: ${a.course} (ปี ${a.gradYear||'-'})</p>
                             <p class="text-xs text-slate-500 truncate">ศูนย์ฯ: ${a.center}</p>
@@ -1571,7 +1702,7 @@ async function handleAddStaff(event) {
         function viewMessageDetails(id) {
             const m = contactMessages.find(msg => msg.id === id); if (!m) return;
             document.getElementById('view-modal-title').innerText = 'รายละเอียดข้อความ';
-            document.getElementById('view-content').innerHTML = `<p class="text-xs text-slate-400 mb-2 font-bold uppercase">จาก: ${m.name} (${m.email})</p><div class="bg-slate-50 p-6 rounded-2xl border text-slate-700 leading-relaxed whitespace-pre-wrap">${m.message}</div>`;
+            document.getElementById('view-content').innerHTML = `<p class="text-xs text-slate-400 mb-2 font-bold uppercase">จาก: ${escapeHTML(m.name)} (${escapeHTML(m.email)})</p><div class="bg-slate-50 p-6 rounded-2xl border text-slate-700 leading-relaxed whitespace-pre-wrap">${escapeHTML(m.message)}</div>`;
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('view-modal').classList.remove('hidden');
         }
 
@@ -1630,12 +1761,12 @@ async function handleAddStaff(event) {
                                     ${j.image ? `<div class="h-48 -mx-6 -mt-6 mb-4 bg-slate-100 overflow-hidden"><img src="${j.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>` : ''}
                                     <div class="flex-grow">
                                         <span class="px-3 py-1 text-[10px] font-bold uppercase rounded-full ${j.type === 'job' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}">${j.type === 'job' ? 'รับสมัครงาน' : 'โปรโมทธุรกิจ'}</span>
-                                        <h3 class="font-bold text-lg mt-3 text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">${j.title}</h3>
+                                        <h3 class="font-bold text-lg mt-3 text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">${escapeHTML(j.title)}</h3>
                                         <p class="text-xs text-slate-400 mt-1 mb-3">โดย: ${j.author_name} • ${new Date(j.created_at).toLocaleDateString('th-TH')}</p>
                                         <p class="text-sm text-slate-600 line-clamp-3 mb-4 whitespace-pre-wrap">${j.description}</p>
                                         <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mt-auto">
                                             <p class="text-xs font-bold text-slate-500 mb-1">ติดต่อ:</p>
-                                            <p class="text-sm font-medium text-indigo-700">${j.contact}</p>
+                                            <p class="text-sm font-medium text-indigo-700">${escapeHTML(j.description)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1656,17 +1787,17 @@ async function handleAddStaff(event) {
                 ${j.image ? `<img src="${j.image}" class="w-full rounded-2xl h-80 object-contain bg-slate-50 border border-slate-100 mb-6 shadow-inner" onerror="this.src='https://via.placeholder.com/800x400?text=No+Image'">` : ''}
                 <div>
                     <span class="px-3 py-1 text-[10px] font-bold uppercase rounded-full ${j.type === 'job' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'} inline-block mb-3">${j.type === 'job' ? 'รับสมัครงาน' : 'โปรโมทธุรกิจ'}</span>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2 leading-tight">${j.title}</h3>
-                    <p class="text-xs text-slate-500 font-medium mb-6">โพสต์โดย: ${j.author_name} • เมื่อ: ${new Date(j.created_at).toLocaleDateString('th-TH')}</p>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2 leading-tight">${escapeHTML(j.title)}</h3>
+                    <p class="text-xs text-slate-500 font-medium mb-6">โพสต์โดย: ${escapeHTML(j.author_name)} • เมื่อ: ${new Date(j.created_at).toLocaleDateString('th-TH')}</p>
                     
-                    <div class="whitespace-pre-wrap text-slate-700 leading-relaxed text-base border-t border-slate-100 pt-6 mb-8">${j.description}</div>
+                    <div class="whitespace-pre-wrap text-slate-700 leading-relaxed text-base border-t border-slate-100 pt-6 mb-8">${escapeHTML(j.description)}</div>
                     
                     <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
                         <p class="text-xs font-bold text-indigo-800 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                             ช่องทางการติดต่อ
                         </p>
-                        <p class="text-lg font-bold text-indigo-700 mt-2">${j.contact}</p>
+                        <p class="text-lg font-bold text-indigo-700 mt-2">${escapeHTML(j.contact)}</p>
                     </div>
                 </div>`;
             
