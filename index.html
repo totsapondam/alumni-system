@@ -29,7 +29,7 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <nav class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center gap-3 cursor-pointer shrink-0" onclick="showView('home')">
@@ -37,7 +37,13 @@
                         <svg id="nav-default-icon" class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
                         <img id="nav-custom-logo" src="" class="w-full h-full object-cover hidden" alt="Logo">
                     </div>
-                    <span id="nav-site-name" class="text-lg font-bold text-slate-900 hidden lg:block tracking-tight">ทะเบียนศิษย์เก่า</span>
+                    <span id="nav-site-name" class="text-lg font-bold text-slate-900 tracking-tight">ทะเบียนศิษย์เก่า</span>
+                </div>
+
+                <div class="flex items-center md:hidden">
+                    <button onclick="toggleMobileMenu()" class="text-slate-500 hover:text-blue-600 focus:outline-none p-2">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
                 </div>
 
                 <div class="hidden md:flex items-center justify-end flex-grow ml-4 space-x-1 lg:space-x-2">
@@ -46,7 +52,8 @@
                     <button onclick="showView('news')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">ข่าวสาร</button>
                     <button onclick="showView('job-board')" class="hover:text-blue-600 hover:bg-slate-50 transition px-3 py-2 rounded-lg text-slate-600 font-medium text-sm">กระดานงาน</button>
 
-                    <div class="h-5 w-[1px] bg-slate-200 mx-2"></div> <div id="alumni-nav-section" class="flex items-center">
+                    <div class="h-5 w-[1px] bg-slate-200 mx-2"></div> 
+                    <div id="alumni-nav-section" class="flex items-center">
                         <button id="alumni-login-btn" onclick="showView('alumni-login')" class="text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full font-bold hover:bg-blue-100 transition text-sm border border-blue-100">
                             เข้าสู่ระบบ
                         </button>
@@ -68,6 +75,35 @@
                             Dashboard <span class="hidden lg:inline">(<span id="staff-name"></span>)</span>
                         </button>
                         <button onclick="logout()" class="text-xs font-bold text-red-400 hover:text-red-600 p-1">ออก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-100 shadow-xl absolute w-full left-0 z-40 pb-4">
+            <div class="px-4 pt-2 space-y-1">
+                <button onclick="showView('home'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-bold hover:bg-slate-50 border-b border-slate-50">หน้าแรก</button>
+                <button onclick="showView('register'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-bold hover:bg-slate-50 border-b border-slate-50">ลงทะเบียนศิษย์เก่า</button>
+                <button onclick="showView('news'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-bold hover:bg-slate-50 border-b border-slate-50">ข่าวสาร</button>
+                <button onclick="showView('job-board'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-bold hover:bg-slate-50 border-b border-slate-50">กระดานงาน / ธุรกิจ</button>
+                
+                <div class="pt-4 pb-2">
+                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">สำหรับศิษย์เก่า</p>
+                    <button id="mobile-alumni-login-btn" onclick="showView('alumni-login'); toggleMobileMenu()" class="block w-full text-center px-4 py-3 rounded-xl text-blue-600 bg-blue-50 font-bold hover:bg-blue-100 transition shadow-sm">เข้าสู่ระบบศิษย์เก่า</button>
+                    <div id="mobile-alumni-profile" class="hidden flex flex-col gap-2">
+                        <button onclick="showView('alumni-profile'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-blue-700 bg-blue-50 font-bold shadow-sm">👤 โปรไฟล์ของฉัน</button>
+                        <button onclick="logoutAlumni()" class="block w-full text-left px-4 py-3 rounded-xl text-red-500 font-bold hover:bg-red-50">ออกจากระบบ</button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">สำหรับเจ้าหน้าที่</p>
+                    <button id="mobile-staff-entry-btn" onclick="showView('staff-login'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-50">🔒 เข้าสู่ระบบเจ้าหน้าที่</button>
+                    <div id="mobile-staff-profile" class="hidden flex flex-col gap-2">
+                        <button onclick="showView('admin-dashboard'); toggleMobileMenu()" class="flex items-center gap-2 w-full text-left px-4 py-3 rounded-xl text-purple-700 bg-purple-50 font-bold shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg> Admin Dashboard
+                        </button>
+                        <button onclick="logout()" class="block w-full text-left px-4 py-3 rounded-xl text-red-500 font-bold hover:bg-red-50">ออกจากระบบ</button>
                     </div>
                 </div>
             </div>
@@ -1986,21 +2022,42 @@ async function handleAddStaff(event) {
                 setLoading(false);
             }
         }
+        // ฟังก์ชันใหม่: เอาไว้เปิด-ปิดเมนูบนมือถือ
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        // อัปเดตฟังก์ชันเช็คสถานะการล็อกอินให้ครอบคลุมเมนูมือถือด้วย
         function updateStaffNav() {
             if (currentUser) {
-                document.getElementById('staff-entry-btn').classList.add('hidden');
-                document.getElementById('alumni-login-btn').classList.add('hidden'); // ซ่อนปุ่มศิษย์เก่าถ้าแอดมินใช้งานอยู่
-                document.getElementById('staff-profile').classList.remove('hidden');
-                document.getElementById('staff-name').innerText = currentUser.name;
+                // อัปเดตเมนูคอมพิวเตอร์
+                document.getElementById('staff-entry-btn')?.classList.add('hidden');
+                document.getElementById('alumni-login-btn')?.classList.add('hidden'); 
+                document.getElementById('staff-profile')?.classList.remove('hidden');
+                if(document.getElementById('staff-name')) document.getElementById('staff-name').innerText = currentUser.name;
+                
+                // อัปเดตเมนูมือถือ
+                document.getElementById('mobile-staff-entry-btn')?.classList.add('hidden');
+                document.getElementById('mobile-alumni-login-btn')?.classList.add('hidden');
+                document.getElementById('mobile-staff-profile')?.classList.remove('hidden');
+                document.getElementById('mobile-alumni-profile')?.classList.add('hidden');
             }
         }
+        
         function updateAlumniNav() { 
             if (currentAlumni) { 
-                document.getElementById('alumni-login-btn').classList.add('hidden');
-                document.getElementById('staff-entry-btn').classList.add('hidden'); // ซ่อนปุ่มแอดมินถ้าศิษย์เก่าใช้งานอยู่
-                document.getElementById('alumni-profile-btn').classList.remove('hidden'); 
-                document.getElementById('nav-alumni-name').innerText = currentAlumni.fullName; 
-                if(currentAlumni.photo) document.getElementById('nav-alumni-avatar').innerHTML = `<img src="${currentAlumni.photo}" class="w-full h-full object-cover">`;
+                // อัปเดตเมนูคอมพิวเตอร์
+                document.getElementById('alumni-login-btn')?.classList.add('hidden');
+                document.getElementById('staff-entry-btn')?.classList.add('hidden');
+                document.getElementById('alumni-profile-btn')?.classList.remove('hidden'); 
+                if(document.getElementById('nav-alumni-name')) document.getElementById('nav-alumni-name').innerText = currentAlumni.fullName; 
+                if(currentAlumni.photo && document.getElementById('nav-alumni-avatar')) document.getElementById('nav-alumni-avatar').innerHTML = `<img src="${currentAlumni.photo}" class="w-full h-full object-cover">`;
+                
+                // อัปเดตเมนูมือถือ
+                document.getElementById('mobile-alumni-login-btn')?.classList.add('hidden');
+                document.getElementById('mobile-staff-entry-btn')?.classList.add('hidden');
+                document.getElementById('mobile-alumni-profile')?.classList.remove('hidden');
+                document.getElementById('mobile-staff-profile')?.classList.add('hidden');
             } 
         }
         async function logout() {
