@@ -408,6 +408,7 @@
             // 3. โหลดข้อมูลทั้งหมด (ตอนนี้ระบบรู้แล้วว่าใครล็อกอิน ข้อมูลจะมาครบ)
             await syncData();
             await fetchSiteSettings();
+			initVisitorTracking();
             
             // 4. เช็คการล็อกอินของศิษย์เก่า (ดึงจากข้อมูลที่ sync มาแล้ว)
             const savedAlumniId = localStorage.getItem('current_alumni_id');
@@ -578,8 +579,9 @@
                 else if (viewId === 'news') renderNews();
                 else if (viewId === 'admin-news') renderAdminNews();
                 else if (viewId === 'admin-messages') renderAdminMessages();
-				else if (viewId === 'job-board') renderJobBoard();
+                else if (viewId === 'job-board') renderJobBoard();
                 else if (viewId === 'admin-jobs') renderAdminJobs();
+                else if (viewId === 'admin-logs') renderAuditLogs(); // 🟢 เพิ่มหน้านี้
 
                 checkPermissions(viewId);
                 window.scrollTo(0, 0);
@@ -587,7 +589,7 @@
         }
 
         function checkPermissions(viewId) {
-            const adminViews = ['admin-dashboard', 'admin-list', 'super-admin-panel', 'admin-news', 'admin-messages', 'admin-jobs'];
+            const adminViews = ['admin-dashboard', 'admin-list', 'super-admin-panel', 'admin-news', 'admin-messages', 'admin-jobs', 'admin-logs']; // 🟢 เพิ่มสิทธิ์หน้านี้
             if (adminViews.includes(viewId) && !currentUser) {
                 showView('staff-login');
                 showMessage('กรุณาเข้าสู่ระบบเจ้าหน้าที่', 'error');
@@ -752,41 +754,49 @@
                         <div class="flex flex-wrap gap-2">
                             <button onclick="showView('admin-list')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-blue-700 transition">จัดการรายชื่อศิษย์เก่า</button>
                             <button onclick="showView('admin-news')" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-green-700 transition">จัดการข่าว PR</button>
-							<button onclick="showView('admin-jobs')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition">จัดการกระดานธุรกิจ/หางาน</button>
+                            <button onclick="showView('admin-jobs')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition">จัดการกระดานธุรกิจ</button>
                             <button onclick="showView('admin-messages')" class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-amber-600 transition">กล่องข้อความ (${contactMessages.length})</button>
-                            ${currentUser?.role === 'super-admin' ? `<button onclick="showView('super-admin-panel')" class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-purple-700 transition">จัดการสิทธิ์</button>` : ''}
+                            ${currentUser?.role === 'super-admin' ? `
+                                <button onclick="showView('super-admin-panel')" class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-purple-700 transition">จัดการสิทธิ์</button>
+                                <button onclick="showView('admin-logs')" class="bg-slate-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm hover:bg-slate-800 transition">ดูประวัติ Logs</button>
+                            ` : ''}
                         </div>
                     </div>
+
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm font-bold">ศิษย์เก่า</p>
-                            <p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.length}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm font-bold">ข่าวปักหมุด</p>
-                            <p class="text-4xl font-bold mt-2 text-green-600">${newsList.filter(n => n.showOnHome).length}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm font-bold">ศูนย์ฯ</p>
-                            <p class="text-4xl font-bold mt-2 text-slate-800">13</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm font-bold">จบปี 67</p>
-                            <p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.filter(a => a.gradYear == '2567').length}</p>
-                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm font-bold">ศิษย์เก่า</p><p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.length}</p></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm font-bold">ข่าวปักหมุด</p><p class="text-4xl font-bold mt-2 text-green-600">${newsList.filter(n => n.showOnHome).length}</p></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm font-bold">ศูนย์ฯ</p><p class="text-4xl font-bold mt-2 text-slate-800">13</p></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm font-bold">จบปี 67</p><p class="text-4xl font-bold mt-2 text-slate-800">${alumniData.filter(a => a.gradYear == '2567').length}</p></div>
                     </div>
                     <div class="grid md:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <h3 class="font-bold mb-6 text-slate-800">ศูนย์การเรียนรู้</h3>
-                            <div class="h-64"><canvas id="centerChart"></canvas></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                            <h3 class="font-bold mb-6 text-slate-800">หลักสูตร</h3>
-                            <div class="h-64 flex items-center justify-center"><canvas id="courseChart"></canvas></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><h3 class="font-bold mb-6 text-slate-800">ศูนย์การเรียนรู้</h3><div class="h-64"><canvas id="centerChart"></canvas></div></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><h3 class="font-bold mb-6 text-slate-800">หลักสูตร</h3><div class="h-64 flex items-center justify-center"><canvas id="courseChart"></canvas></div></div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 shadow-lg border border-slate-700 text-white">
+                        <h3 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4">สถิติผู้เข้าชมเว็บไซต์ (Traffic)</h3>
+                        <div class="grid grid-cols-3 gap-6 divide-x divide-slate-700/50">
+                            <div class="px-4">
+                                <p class="text-emerald-400 text-xs font-bold mb-1 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>กำลังออนไลน์</p>
+                                <p class="text-4xl font-bold"><span id="stat-online">-</span> <span class="text-base font-normal text-slate-400">คน</span></p>
+                            </div>
+                            <div class="px-6">
+                                <p class="text-blue-300 text-xs font-bold mb-1">เข้าชมวันนี้</p>
+                                <p class="text-4xl font-bold"><span id="stat-today">-</span> <span class="text-base font-normal text-slate-400">ครั้ง</span></p>
+                            </div>
+                            <div class="px-6">
+                                <p class="text-purple-300 text-xs font-bold mb-1">ยอดเข้าชมสะสม</p>
+                                <p class="text-4xl font-bold"><span id="stat-total">-</span> <span class="text-base font-normal text-slate-400">ครั้ง</span></p>
+                            </div>
                         </div>
                     </div>
                 </section>`;
-            setTimeout(renderCharts, 100);
+            
+            setTimeout(() => {
+                renderCharts();
+                if (typeof loadVisitorStats === 'function') loadVisitorStats(); 
+            }, 100);
         }
 
         function renderCharts() {
@@ -1135,7 +1145,9 @@
             const { error: dbError } = await supabaseClient.from('alumni').delete().eq('id', id);
             if (dbError) throw dbError;
 
-            showMessage('ลบข้อมูลและรูปภาพเรียบร้อยแล้ว', 'success');
+            // ส่ง Log
+            await logAction('DELETE', `ลบข้อมูลศิษย์เก่า: ${targetAlumni.fullName} (รหัส: ${targetAlumni.studentId})`);
+			showMessage('ลบข้อมูลและรูปภาพเรียบร้อยแล้ว', 'success');
             await syncData(); 
             renderAdminList();
 
@@ -1428,7 +1440,9 @@
                 const { error } = await supabaseClient.from('alumni').update(p).eq('id', id);
                 if (error) throw error;
 
-                showMessage('อัปเดตข้อมูลสำเร็จ', 'success');
+                // ส่ง Log
+                await logAction('UPDATE', `แก้ไขข้อมูลศิษย์เก่า ID: ${id}`);
+				showMessage('อัปเดตข้อมูลสำเร็จ', 'success');
                 currentSelectedFile = null;
                 currentBase64Image = null;
                 closeModal();
@@ -1751,7 +1765,24 @@ async function handleAddStaff(event) {
         }
 
         async function toggleNewsHome(id, show) { setLoading(true); await supabaseClient.from('news').update({ showOnHome: show }).eq('id', id); await syncData(); renderAdminNews(); setLoading(false); }
-        async function deleteNews(id) { if(confirm('ลบข่าวสารนี้?')) { setLoading(true); await supabaseClient.from('news').delete().eq('id', id); await syncData(); renderAdminNews(); setLoading(false); } }
+        async function deleteNews(id) { 
+            if(confirm('ลบข่าวสารนี้?')) { 
+                setLoading(true); 
+                try {
+                    // หาชื่อข่าวก่อนลบ เพื่อเอาไปบันทึก Log
+                    const target = newsList.find(n => n.id === id);
+                    
+                    await supabaseClient.from('news').delete().eq('id', id); 
+                    
+                    // บันทึก Log
+                    if (target) await logAction('DELETE', `ลบข่าวประชาสัมพันธ์: ${target.title}`);
+                    
+                    await syncData(); 
+                    renderAdminNews(); 
+                } catch(err) { console.error(err); }
+                finally { setLoading(false); } 
+            } 
+        }
 
         // --- Other SuperAdmin & Messages ---
         function renderSuperAdmin() {
@@ -1801,9 +1832,40 @@ async function handleAddStaff(event) {
         }
 
         async function toggleRole(id, role) { setLoading(true); await supabaseClient.from('staff').update({ role: role }).eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); }
-        async function approveStaff(id) { setLoading(true); await supabaseClient.from('staff').update({ status: 'active' }).eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); }
-        async function deleteStaff(id) { if(confirm('ลบสิทธิ์เจ้าหน้าที่นี้?')) { setLoading(true); await supabaseClient.from('staff').delete().eq('id', id); await syncData(); renderSuperAdmin(); setLoading(false); } }
-        async function deleteMessage(id) { if(confirm('ลบข้อความนี้?')) { setLoading(true); await supabaseClient.from('contacts').delete().eq('id', id); await syncData(); renderAdminMessages(); setLoading(false); } }
+        async function approveStaff(id) { 
+            setLoading(true); 
+            try {
+                // หาชื่อคนที่จะอนุมัติก่อน
+                const target = staffUsers.find(s => s.id === id);
+                
+                await supabaseClient.from('staff').update({ status: 'active' }).eq('id', id); 
+                
+                // บันทึก Log
+                if (target) await logAction('UPDATE', `อนุมัติสิทธิ์เจ้าหน้าที่: ${target.name} (${target.email})`);
+                
+                await syncData(); 
+                renderSuperAdmin(); 
+            } catch(err) { console.error(err); }
+            finally { setLoading(false); } 
+        }
+        async function deleteStaff(id) { 
+            if(confirm('ลบสิทธิ์เจ้าหน้าที่นี้?')) { 
+                setLoading(true); 
+                const target = staffUsers.find(s => s.id === id);
+                await supabaseClient.from('staff').delete().eq('id', id); 
+                if (target) await logAction('DELETE', `ลบสิทธิ์/ถอดถอนเจ้าหน้าที่: ${target.name}`);
+                await syncData(); renderSuperAdmin(); setLoading(false); 
+            } 
+        }
+        async function deleteMessage(id) { 
+            if(confirm('ลบข้อความนี้?')) { 
+                setLoading(true); 
+                const target = contactMessages.find(m => m.id === id);
+                await supabaseClient.from('contacts').delete().eq('id', id); 
+                if (target) await logAction('DELETE', `ลบข้อความติดต่อจาก: ${target.name}`);
+                await syncData(); renderAdminMessages(); setLoading(false); 
+            } 
+        }
 		async function resetAdminPassword() {
             const email = document.getElementById('st-email').value;
             if (!email) {
@@ -1823,8 +1885,97 @@ async function handleAddStaff(event) {
                 setLoading(false);
             }
         }
+		async function renderAuditLogs() {
+            if (currentUser?.role !== 'super-admin') return showView('admin-dashboard');
+            
+            document.getElementById('main-content').innerHTML = `
+                <section class="space-y-6 page-transition max-w-6xl mx-auto">
+                    <div class="flex items-center gap-3 mb-2">
+                        <button onclick="showView('admin-dashboard')" class="p-2 hover:bg-slate-100 rounded-full transition text-slate-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+                        <h1 class="text-2xl font-bold text-slate-800">ประวัติการใช้งานระบบ (Audit Logs)</h1>
+                    </div>
+                    <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                                <tr><th class="px-6 py-4">วัน-เวลา</th><th class="px-6 py-4">เจ้าหน้าที่</th><th class="px-6 py-4">การกระทำ</th><th class="px-6 py-4">รายละเอียด</th></tr>
+                            </thead>
+                            <tbody id="logs-table-body" class="divide-y divide-slate-100 text-sm">
+                                <tr><td colspan="4" class="text-center py-10 text-slate-400">กำลังโหลดข้อมูล...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>`;
+
+            // ดึงข้อมูล Log ล่าสุด 100 รายการ
+            try {
+                const { data, error } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
+                
+                const tbody = document.getElementById('logs-table-body');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-slate-400">ยังไม่มีประวัติการใช้งาน</td></tr>';
+                } else {
+                    tbody.innerHTML = data.map(log => `
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="px-6 py-4 text-xs text-slate-500">${new Date(log.created_at).toLocaleString('th-TH')}</td>
+                            <td class="px-6 py-4 font-bold text-blue-700">${escapeHTML(log.staff_name)}</td>
+                            <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${log.action === 'DELETE' ? 'bg-red-100 text-red-600' : log.action === 'UPDATE' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}">${log.action}</span></td>
+                            <td class="px-6 py-4 text-slate-600">${escapeHTML(log.details)}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
 
         // --- Core Helpers ---
+		// --- ระบบสถิติผู้เข้าชมเว็บไซต์ ---
+        let visitorSessionId = sessionStorage.getItem('v_session');
+        
+        async function initVisitorTracking() {
+            // ถ้าเป็นการเปิดเว็บครั้งแรกของวัน/เซสชันนี้ ให้ไปบวกยอด +1
+            if (!visitorSessionId) {
+                visitorSessionId = 'v_' + Math.random().toString(36).substr(2, 9);
+                sessionStorage.setItem('v_session', visitorSessionId);
+                try { await supabaseClient.rpc('record_visit'); } catch(e){}
+            }
+            
+            // ส่งสัญญาณไปบอกฐานข้อมูลว่า "ฉันยังเปิดเว็บอยู่นะ"
+            pingOnline(); 
+            setInterval(pingOnline, 60000); // ส่งทุกๆ 1 นาที
+        }
+
+        async function pingOnline() {
+            try { 
+                await supabaseClient.from('online_visitors').upsert([{ 
+                    session_id: visitorSessionId, 
+                    last_active: new Date().toISOString() 
+                }]); 
+            } catch(e){}
+        }
+
+        // ฟังก์ชันดึงสถิติไปแสดงหน้า Dashboard
+        async function loadVisitorStats() {
+            try {
+                const { data } = await supabaseClient.rpc('get_visitor_stats');
+                if (data && document.getElementById('stat-online')) {
+                    document.getElementById('stat-online').innerText = data.online;
+                    document.getElementById('stat-today').innerText = data.today;
+                    document.getElementById('stat-total').innerText = data.total;
+                }
+            } catch(e) {}
+        }
+		async function logAction(action, details) {
+            if (!currentUser) return; // บันทึกเฉพาะตอนแอดมินทำงาน
+            try {
+                await supabaseClient.from('audit_logs').insert([{
+                    staff_name: currentUser.name,
+                    action: action,
+                    details: details
+                }]);
+            } catch (err) { console.warn('บันทึก Log ไม่สำเร็จ:', err); }
+        }
 		// --- JOB BOARD FUNCTIONS ---
         function renderJobBoard() {
             document.getElementById('main-content').innerHTML = `
@@ -2002,7 +2153,24 @@ async function handleAddStaff(event) {
         }
 		async function approveJob(id) { setLoading(true); await supabaseClient.from('jobs').update({ is_approved: true }).eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); }
         async function hideJob(id) { setLoading(true); await supabaseClient.from('jobs').update({ is_approved: false }).eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); }
-        async function deleteJob(id) { if(confirm('ลบประกาศนี้?')){ setLoading(true); await supabaseClient.from('jobs').delete().eq('id', id); await syncData(); renderAdminJobs(); setLoading(false); } }
+        async function deleteJob(id) { 
+            if(confirm('ลบประกาศนี้?')){ 
+                setLoading(true); 
+                try {
+                    // หาชื่อประกาศก่อนลบ
+                    const target = jobList.find(j => j.id === id);
+                    
+                    await supabaseClient.from('jobs').delete().eq('id', id); 
+                    
+                    // บันทึก Log
+                    if (target) await logAction('DELETE', `ลบประกาศกระดานงาน: ${target.title}`);
+                    
+                    await syncData(); 
+                    renderAdminJobs(); 
+                } catch(err) { console.error(err); }
+                finally { setLoading(false); } 
+            } 
+        }
 		async function handleAdminUpdatePassword(e) {
             e.preventDefault();
             const newPass = document.getElementById('admin-new-pass-input').value;
