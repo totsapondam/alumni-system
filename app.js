@@ -18,7 +18,7 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
         const itemsPerPage = 50;
         let filteredAlumniData = [];
 		let dirCurrentPage = 1;
-        const dirItemsPerPage = 21;
+        const dirItemsPerPage = 12;
         let dirFilteredData = [];
 		function escapeHTML(str) {
     if (!str) return '';
@@ -244,7 +244,7 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
             }
         }
 
-        // ฟังก์ชันใหม่: ย่อรูปและบีบอัดก่อนอัปโหลด (รองรับคนหลักหมื่น)
+        // ฟังก์ชันบีบอัดรูปและอัปโหลด (เวอร์ชันประหยัด Egress ขั้นสุด)
         async function compressAndUploadImage(file) {
             if (!file) return null;
             return new Promise((resolve, reject) => {
@@ -257,7 +257,8 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
 
-                        const MAX_WIDTH = 500;
+                        // 🟢 1. ปรับลดขนาดความกว้างรูปภาพลงเหลือ 300px
+                        const MAX_WIDTH = 300;
                         const scaleSize = MAX_WIDTH / img.width;
                         canvas.width = MAX_WIDTH;
                         canvas.height = img.height * scaleSize;
@@ -271,7 +272,9 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
 
                             try {
                                 const { data, error } = await supabaseClient.storage.from('profiles').upload(fileName, blob, {
-                                    contentType: 'image/jpeg'
+                                    contentType: 'image/jpeg',
+                                    cacheControl: '31536000', // 🟢 2. สั่งให้บราวเซอร์จำรูปนี้ไว้ 1 ปี (ไม่ต้องสูบโควต้าโหลดซ้ำ)
+                                    upsert: false
                                 });
                                 if (error) throw error;
                                 const { data: publicUrlData } = supabaseClient.storage.from('profiles').getPublicUrl(fileName);
@@ -279,7 +282,8 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
                             } catch (err) {
                                 reject(new Error('อัปโหลดรูปภาพไม่สำเร็จ: ' + err.message));
                             }
-                        }, 'image/jpeg', 0.7);
+                        // 🟢 1. ปรับคุณภาพรูปภาพลดลงเหลือ 0.6 (60%)
+                        }, 'image/jpeg', 0.6);
                     };
                 };
                 reader.onerror = (error) => reject(error);
@@ -1469,22 +1473,55 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
         function renderHome() {
             const pinnedNews = newsList.filter(n => n.showOnHome);
             document.getElementById('main-content').innerHTML = `
-                <section class="text-center py-20 flex flex-col items-center">
-                    <h1 class="text-5xl font-bold mb-6 tracking-tight">ยินดีต้อนรับศิษย์เก่า</h1>
-                    <div class="flex gap-4">
-                        <button onclick="showView('alumni-login')" class="bg-blue-600 text-white px-8 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition">เข้าสู่ระบบ</button>
-                        <button onclick="showView('register')" class="border border-slate-300 px-8 py-3 rounded-xl hover:bg-slate-50 transition">ลงทะเบียน</button>
-                    </div>
-                    ${pinnedNews.length > 0 ? `<div class="mt-20 grid md:grid-cols-3 gap-6 text-left max-w-6xl w-full px-4">
-                        ${pinnedNews.map(n => `
-                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
-                            <div class="h-44 overflow-hidden bg-slate-100 flex-shrink-0"><img loading="lazy" src="${n.image}" class="w-full h-full object-contain transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'"></div>
-                            <div class="p-6 flex-grow flex flex-col">
-                                ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-1">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
-                                <h3 class="font-bold text-lg mb-2 line-clamp-2">${n.title}</h3>
-                                <p class="text-slate-500 text-sm line-clamp-2">${(n.content || '').replace(/<[^>]*>?/gm, '')}</p>
+                <section class="page-transition w-full">
+                    
+                    <div class="relative w-full rounded-[2.5rem] overflow-hidden mb-16 shadow-2xl flex items-center justify-center min-h-[500px]">
+                        
+                        <img src="https://www.pim.ac.th/wp-content/uploads/2018/11/PP-0560.jpg" class="absolute inset-0 w-full h-full object-cover" alt="PIM Background">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-900/60 to-slate-800/30 backdrop-blur-[1px]"></div>
+                        
+                        <div class="relative z-10 py-20 px-6 text-center flex flex-col items-center w-full max-w-4xl mx-auto">
+                            <span class="px-4 py-1.5 rounded-full bg-blue-500/30 border border-blue-300/50 text-white text-sm font-bold tracking-widest uppercase mb-6 backdrop-blur-md shadow-sm">
+                                Panyapiwat Institute of Management
+                            </span>
+                            <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl" style="text-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                                ทะเบียนศิษย์เก่า<br><span class="text-blue-300">คณะบริหารธุรกิจ</span>
+                            </h1>
+                            <p class="text-lg md:text-xl text-white mb-10 max-w-2xl font-medium drop-shadow-xl leading-relaxed" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                พื้นที่เชื่อมต่อความสัมพันธ์ แบ่งปันประสบการณ์ <br class="hidden md:block">และต่อยอดโอกาสทางธุรกิจสำหรับครอบครัว IMM และ CIMM
+                            </p>
+                            <div class="flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto">
+                                <button onclick="showView('alumni-login')" class="w-full sm:w-auto bg-blue-600 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:bg-blue-500 hover:shadow-blue-500/50 transition transform hover:-translate-y-1 text-lg">
+                                    เข้าสู่ระบบศิษย์เก่า
+                                </button>
+                                <button onclick="showView('register')" class="w-full sm:w-auto bg-black/30 backdrop-blur-md border border-white/40 text-white px-10 py-4 rounded-full font-bold hover:bg-black/50 transition transform hover:-translate-y-1 text-lg shadow-xl">
+                                    ลงทะเบียนใหม่
+                                </button>
                             </div>
-                        </div>`).join('')}
+                        </div>
+                    </div>
+
+                    ${pinnedNews.length > 0 ? `
+                    <div class="max-w-6xl mx-auto px-4 mb-12">
+                        <div class="flex items-center justify-between mb-8">
+                            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">📌 ข่าวสารและกิจกรรมล่าสุด</h2>
+                            <button onclick="showView('news')" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">ดูทั้งหมด <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-6 text-left">
+                            ${pinnedNews.map(n => `
+                            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-xl hover:-translate-y-1 transition duration-300 group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
+                                <div class="h-48 overflow-hidden bg-slate-100 flex-shrink-0 relative">
+                                    <img loading="lazy" src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'">
+                                    <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition"></div>
+                                </div>
+                                <div class="p-6 flex-grow flex flex-col relative bg-white">
+                                    ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-2 tracking-wider uppercase">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
+                                    <h3 class="font-bold text-lg mb-2 line-clamp-2 text-slate-800 group-hover:text-blue-600 transition">${n.title}</h3>
+                                    <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${(n.content || '').replace(/<[^>]*>?/gm, '')}</p>
+                                </div>
+                            </div>`).join('')}
+                        </div>
                     </div>` : ''}
                 </section>`;
         }
