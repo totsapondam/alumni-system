@@ -358,24 +358,136 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
 
         // --- Render Functions ---
         function renderHome() {
+            // ดึงข้อมูลเพื่อมาโชว์ในหน้าแรก
             const pinnedNews = newsList.filter(n => n.showOnHome);
+            const mentorCount = alumniData.filter(a => a.is_mentor).length; // นับจำนวนคนใจดี
+            const latestJobs = jobList.filter(j => j.is_approved).slice(0, 3); // ดึงงานล่าสุดมาแค่ 3 งาน
+
             document.getElementById('main-content').innerHTML = `
-                <section class="text-center py-20 flex flex-col items-center">
-                    <h1 class="text-5xl font-bold mb-6 tracking-tight">ยินดีต้อนรับศิษย์เก่า</h1>
-                    <div class="flex gap-4">
-                        <button onclick="showView('alumni-login')" class="bg-blue-600 text-white px-8 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition">เข้าสู่ระบบ</button>
-                        <button onclick="showView('register')" class="border border-slate-300 px-8 py-3 rounded-xl hover:bg-slate-50 transition">ลงทะเบียน</button>
-                    </div>
-                    ${pinnedNews.length > 0 ? `<div class="mt-20 grid md:grid-cols-3 gap-6 text-left max-w-6xl w-full px-4">
-                        ${pinnedNews.map(n => `
-                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
-                            <div class="h-44 overflow-hidden bg-slate-100 flex-shrink-0"><img loading="lazy" src="${n.image}" class="w-full h-full object-contain transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'"></div>
-                            <div class="p-6 flex-grow flex flex-col">
-                                ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-1">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
-                                <h3 class="font-bold text-lg mb-2 line-clamp-2">${n.title}</h3>
-                                <p class="text-slate-500 text-sm line-clamp-2">${n.content}</p>
+                <section class="page-transition w-full">
+                    
+                    <div class="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl flex items-center justify-center min-h-[500px] pb-24">
+                        <img src="https://www.pim.ac.th/wp-content/uploads/2018/11/PP-0560.jpg" class="absolute inset-0 w-full h-full object-cover" alt="PIM Background">
+                        <div class="absolute inset-0 bg-gradient-to-r from-slate-900/60 to-slate-800/30 backdrop-blur-[1px]"></div>
+                        
+                        <div class="relative z-10 py-16 px-6 text-center flex flex-col items-center w-full max-w-4xl mx-auto">
+                            <span class="px-4 py-1.5 rounded-full bg-blue-500/30 border border-blue-300/50 text-white text-sm font-bold tracking-widest uppercase mb-6 backdrop-blur-md shadow-sm">
+                                Panyapiwat Institute of Management
+                            </span>
+                            <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl" style="text-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                                ทะเบียนศิษย์เก่า<br><span class="text-blue-300">คณะบริหารธุรกิจ</span>
+                            </h1>
+                            <p class="text-lg md:text-xl text-white mb-10 max-w-2xl font-medium drop-shadow-xl leading-relaxed" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                พื้นที่เชื่อมต่อความสัมพันธ์ แบ่งปันประสบการณ์ <br class="hidden md:block">และต่อยอดโอกาสทางธุรกิจสำหรับครอบครัว IMM และ CIMM
+                            </p>
+                            <div class="flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto">
+                                <button onclick="showView('alumni-login')" class="w-full sm:w-auto bg-blue-600 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:bg-blue-500 hover:shadow-blue-500/50 transition transform hover:-translate-y-1 text-lg">
+                                    เข้าสู่ระบบศิษย์เก่า
+                                </button>
+                                <button onclick="showView('register')" class="w-full sm:w-auto bg-black/30 backdrop-blur-md border border-white/40 text-white px-10 py-4 rounded-full font-bold hover:bg-black/50 transition transform hover:-translate-y-1 text-lg shadow-xl">
+                                    ลงทะเบียนใหม่
+                                </button>
                             </div>
-                        </div>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="max-w-5xl mx-auto px-4 -mt-24 relative z-30 mb-20">
+                        <div class="bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 text-center relative overflow-hidden">
+                            <div class="px-4">
+                                <p class="text-4xl font-extrabold text-blue-600 mb-2">${alumniData.length}</p>
+                                <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">🎓 ศิษย์เก่าในระบบ</p>
+                            </div>
+                            <div class="px-4 pt-6 md:pt-0">
+                                <p class="text-4xl font-extrabold text-indigo-600 mb-2">13</p>
+                                <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">🏢 ศูนย์การเรียนรู้</p>
+                            </div>
+                            <div class="px-4 pt-6 md:pt-0">
+                                <p class="text-4xl font-extrabold text-emerald-600 mb-2">${mentorCount}</p>
+                                <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">🤝 รุ่นพี่พร้อมให้คำปรึกษา</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-w-6xl mx-auto px-4 mb-20">
+                        <div class="text-center mb-10">
+                            <h2 class="text-3xl font-bold text-slate-800 tracking-tight">ทำไมถึงควรลงทะเบียน?</h2>
+                            <p class="text-slate-500 mt-2">สิทธิประโยชน์พิเศษสำหรับสมาชิกเครือข่าย IMM/CIMM</p>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-8">
+                            <div class="bg-blue-50/50 p-8 rounded-3xl border border-blue-100 text-center hover:-translate-y-1 transition duration-300">
+                                <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-200">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">เครือข่ายศิษย์เก่า</h3>
+                                <p class="text-slate-600 text-sm leading-relaxed">ค้นหาและติดต่อเพื่อน รุ่นพี่ รุ่นน้องต่างศูนย์ เพื่อแลกเปลี่ยนประสบการณ์และสร้างคอนเนคชัน</p>
+                            </div>
+                            <div class="bg-indigo-50/50 p-8 rounded-3xl border border-indigo-100 text-center hover:-translate-y-1 transition duration-300">
+                                <div class="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-200">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">กระดานธุรกิจ & หางาน</h3>
+                                <p class="text-slate-600 text-sm leading-relaxed">พื้นที่โปรโมทกิจการของคุณ ค้นหาพาร์ทเนอร์ธุรกิจ หรือฝากประวัติเพื่อค้นหาโอกาสทางสายอาชีพใหม่ๆ</p>
+                            </div>
+                            <div class="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 text-center hover:-translate-y-1 transition duration-300">
+                                <div class="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-200">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">ข่าวสาร & กิจกรรม</h3>
+                                <p class="text-slate-600 text-sm leading-relaxed">อัปเดตข่าวสารความเคลื่อนไหวของคณะ กิจกรรมอบรมสัมมนาฟรี และงานคืนสู่เหย้าก่อนใคร</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${latestJobs.length > 0 ? `
+                    <div class="max-w-6xl mx-auto px-4 mb-20">
+                        <div class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+                            <div>
+                                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">💼 โอกาสทางธุรกิจและสายอาชีพ</h2>
+                                <p class="text-slate-500 text-sm mt-1">ประกาศล่าสุดจากเพื่อนๆ และรุ่นพี่ในเครือข่าย</p>
+                            </div>
+                            <button onclick="showView('job-board')" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-4 py-2 rounded-lg transition">ไปที่กระดานงาน <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-6 text-left">
+                            ${latestJobs.map(j => `
+                            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full hover:shadow-lg transition">
+                                <div class="p-6 flex-grow flex flex-col relative">
+                                    <div class="mb-3">
+                                        <span class="px-3 py-1 text-[10px] font-bold uppercase rounded-full ${j.type === 'job' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}">${j.type === 'job' ? 'รับสมัครงาน' : 'โปรโมทธุรกิจ'}</span>
+                                    </div>
+                                    <h3 class="font-bold text-lg mb-2 line-clamp-2 text-slate-800">${escapeHTML(j.title)}</h3>
+                                    <p class="text-xs text-slate-400 mb-4">โดย: ${j.author_name}</p>
+                                    
+                                    <div class="relative flex-grow">
+                                        <p class="text-slate-500 text-sm line-clamp-3 leading-relaxed">${escapeHTML(j.description)}</p>
+                                        <div class="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
+                                    </div>
+                                    
+                                    <button onclick="showView('alumni-login')" class="mt-4 w-full bg-slate-50 text-indigo-600 border border-indigo-100 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">เข้าสู่ระบบเพื่อดูรายละเอียด</button>
+                                </div>
+                            </div>`).join('')}
+                        </div>
+                    </div>` : ''}
+
+                    ${pinnedNews.length > 0 ? `
+                    <div class="max-w-6xl mx-auto px-4 mb-12">
+                        <div class="flex items-center justify-between mb-8">
+                            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">📌 ข่าวสารและกิจกรรมล่าสุด</h2>
+                            <button onclick="showView('news')" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">ดูทั้งหมด <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-6 text-left">
+                            ${pinnedNews.map(n => `
+                            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-xl hover:-translate-y-1 transition duration-300 group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
+                                <div class="h-48 overflow-hidden bg-slate-100 flex-shrink-0 relative">
+                                    <img loading="lazy" src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'">
+                                    <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition"></div>
+                                </div>
+                                <div class="p-6 flex-grow flex flex-col relative bg-white">
+                                    ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-2 tracking-wider uppercase">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
+                                    <h3 class="font-bold text-lg mb-2 line-clamp-2 text-slate-800 group-hover:text-blue-600 transition">${n.title}</h3>
+                                    <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${(n.content || '').replace(/<[^>]*>?/gm, '')}</p>
+                                </div>
+                            </div>`).join('')}
+                        </div>
                     </div>` : ''}
                 </section>`;
         }
@@ -1470,82 +1582,6 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
             document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); modal.classList.remove('hidden');
         }
 
-        function renderHome() {
-            const pinnedNews = newsList.filter(n => n.showOnHome);
-            document.getElementById('main-content').innerHTML = `
-                <section class="page-transition w-full">
-                    
-                    <div class="relative w-full rounded-[2.5rem] overflow-hidden mb-16 shadow-2xl flex items-center justify-center min-h-[500px]">
-                        
-                        <img src="https://www.pim.ac.th/wp-content/uploads/2018/11/PP-0560.jpg" class="absolute inset-0 w-full h-full object-cover" alt="PIM Background">
-                        
-                        <div class="absolute inset-0 bg-gradient-to-r from-slate-900/60 to-slate-800/30 backdrop-blur-[1px]"></div>
-                        
-                        <div class="relative z-10 py-20 px-6 text-center flex flex-col items-center w-full max-w-4xl mx-auto">
-                            <span class="px-4 py-1.5 rounded-full bg-blue-500/30 border border-blue-300/50 text-white text-sm font-bold tracking-widest uppercase mb-6 backdrop-blur-md shadow-sm">
-                                Panyapiwat Institute of Management
-                            </span>
-                            <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl" style="text-shadow: 0 4px 8px rgba(0,0,0,0.5);">
-                                ทะเบียนศิษย์เก่า<br><span class="text-blue-300">คณะบริหารธุรกิจ</span>
-                            </h1>
-                            <p class="text-lg md:text-xl text-white mb-10 max-w-2xl font-medium drop-shadow-xl leading-relaxed" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-                                พื้นที่เชื่อมต่อความสัมพันธ์ แบ่งปันประสบการณ์ <br class="hidden md:block">และต่อยอดโอกาสทางธุรกิจสำหรับครอบครัว IMM และ CIMM
-                            </p>
-                            <div class="flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto">
-                                <button onclick="showView('alumni-login')" class="w-full sm:w-auto bg-blue-600 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:bg-blue-500 hover:shadow-blue-500/50 transition transform hover:-translate-y-1 text-lg">
-                                    เข้าสู่ระบบศิษย์เก่า
-                                </button>
-                                <button onclick="showView('register')" class="w-full sm:w-auto bg-black/30 backdrop-blur-md border border-white/40 text-white px-10 py-4 rounded-full font-bold hover:bg-black/50 transition transform hover:-translate-y-1 text-lg shadow-xl">
-                                    ลงทะเบียนใหม่
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${pinnedNews.length > 0 ? `
-                    <div class="max-w-6xl mx-auto px-4 mb-12">
-                        <div class="flex items-center justify-between mb-8">
-                            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">📌 ข่าวสารและกิจกรรมล่าสุด</h2>
-                            <button onclick="showView('news')" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">ดูทั้งหมด <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                        </div>
-                        <div class="grid md:grid-cols-3 gap-6 text-left">
-                            ${pinnedNews.map(n => `
-                            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-xl hover:-translate-y-1 transition duration-300 group flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
-                                <div class="h-48 overflow-hidden bg-slate-100 flex-shrink-0 relative">
-                                    <img loading="lazy" src="${n.image}" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=News'">
-                                    <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition"></div>
-                                </div>
-                                <div class="p-6 flex-grow flex flex-col relative bg-white">
-                                    ${n.date ? `<p class="text-xs text-blue-600 font-bold mb-2 tracking-wider uppercase">${formatNewsDate(n.date, n.end_date)}</p>` : ''}
-                                    <h3 class="font-bold text-lg mb-2 line-clamp-2 text-slate-800 group-hover:text-blue-600 transition">${n.title}</h3>
-                                    <p class="text-slate-500 text-sm line-clamp-2 leading-relaxed">${(n.content || '').replace(/<[^>]*>?/gm, '')}</p>
-                                </div>
-                            </div>`).join('')}
-                        </div>
-                    </div>` : ''}
-                </section>`;
-        }
-
-        function renderNews() {
-            document.getElementById('main-content').innerHTML = `
-                <section class="space-y-8 page-transition">
-                    <h1 class="text-3xl font-bold text-slate-900 tracking-tight">ข่าวสารประชาสัมพันธ์</h1>
-                    ${newsList.length === 0 ? '<div class="text-center py-20 text-slate-400">ยังไม่มีข่าวสารในขณะนี้</div>' :
-                        `<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            ${newsList.map(n => `
-                                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden group hover:shadow-lg transition cursor-pointer flex flex-col h-full" onclick="viewNewsDetails(${n.id})">
-                                    <div class="h-48 overflow-hidden bg-slate-100 flex-shrink-0"><img loading="lazy" src="${n.image}" class="w-full h-full object-contain transform group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"></div>
-                                    <div class="p-6 flex-grow flex flex-col">
-                                        ${n.date ? `<div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wider">${formatNewsDate(n.date, n.end_date)}</div>` : ''}
-                                        <h3 class="font-bold text-lg mb-2 text-slate-800 line-clamp-2">${n.title}</h3>
-                                        <p class="text-slate-500 text-sm line-clamp-3">${(n.content || '').replace(/<[^>]*>?/gm, '')}</p>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>`
-                    }
-                </section>`;
-        }
 
         // ฟังก์ชันสำหรับเปิด Modal (หากคุณต้องการนำไปผูกกับปุ่มในหน้าจัดการสิทธิ์)
 function openAddStaffModal() {
