@@ -367,7 +367,7 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
                 <section class="page-transition w-full">
                     
                     <div class="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl flex items-center justify-center min-h-[500px] pb-24">
-                        <img src="https://www.pim.ac.th/wp-content/uploads/2018/11/PP-0560.jpg" class="absolute inset-0 w-full h-full object-cover" alt="PIM Background">
+                        <img src="https://campus.campus-star.com/app/uploads/2018/10/43190289_339212793291807_5585608863983337472_n.jpg" class="absolute inset-0 w-full h-full object-cover" alt="PIM Background">
                         <div class="absolute inset-0 bg-gradient-to-r from-slate-900/60 to-slate-800/30 backdrop-blur-[1px]"></div>
                         
                         <div class="relative z-10 py-16 px-6 text-center flex flex-col items-center w-full max-w-4xl mx-auto">
