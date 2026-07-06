@@ -1575,29 +1575,7 @@ async function handleAddStaff(event) {
         setLoading(false);
     }
 }
-        function openEditNewsModal(id) {
-            const n = newsList.find(item => item.id === id); if(!n) return; const f = document.getElementById('news-form');
-            f.elements['id'].value = n.id; f.elements['title'].value = n.title; f.elements['content'].value = n.content; 
-            f.elements['date'].value = n.date || ''; f.elements['end_date'].value = n.end_date || ''; f.elements['image'].value = n.image || ''; 
-            if(f.elements['link']) f.elements['link'].value = n.link || '';
-            f.elements['showOnHome'].checked = n.showOnHome;
-            document.getElementById('news-modal-title').innerText = 'แก้ไขข่าวสาร'; document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); document.getElementById('add-news-modal').classList.remove('hidden');
-        }
-        async function handleSaveNews(e) {
-            e.preventDefault(); const f = new FormData(e.target); const id = f.get('id'); const p = Object.fromEntries(f); p.showOnHome = f.get('showOnHome') === 'on'; 
-            
-            // ป้องกัน Error ฐานข้อมูลเมื่อไม่ได้ใส่วันที่และลิงก์
-            if(!p.date) p.date = null;
-            if(!p.end_date) p.end_date = null;
-            if(!p.link) p.link = null;
 
-            delete p.id; setLoading(true); 
-            try { 
-                if(id) await supabaseClient.from('news').update(p).eq('id', id); 
-                else await supabaseClient.from('news').insert([p]); 
-                closeModal(); await syncData(); renderAdminNews(); 
-            } catch(err) { alert(err.message); } finally { setLoading(false); }
-        }
 
         function openEditFooterModal() {
             document.getElementById('conf-site-name').value = siteConfig.siteName || '';
