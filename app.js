@@ -1363,6 +1363,10 @@ const SUPABASE_URL = 'https://rinrtpllgeqigcmenglj.supabase.co';
             dirCurrentPage = 1;
             renderDirectoryPage();
         }
+function changeDirPage(direction) {
+    dirCurrentPage += direction;
+    renderDirectoryPage();
+}
 
         function renderDirectoryPage() {
             const grid = document.getElementById('dir-grid');
