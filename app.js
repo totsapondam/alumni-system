@@ -1575,7 +1575,38 @@ async function handleAddStaff(event) {
         setLoading(false);
     }
 }
+function openEditNewsModal(id) {
+    // 1. เปลี่ยนจาก === เป็น == เพื่อให้มันฉลาดพอที่จะรู้ว่า 7 กับ "7" คือตัวเดียวกัน
+    const n = newsList.find(item => item.id == id); 
+    
+    // ถ้าหาไม่เจอจริงๆ ให้แจ้งเตือน จะได้ไม่เงียบไปเฉยๆ
+    if(!n) {
+        alert("ไม่พบข้อมูลข่าวสารที่ต้องการแก้ไข");
+        return; 
+    }
 
+    const f = document.getElementById('news-form');
+    f.elements['id'].value = n.id; 
+    f.elements['title'].value = n.title; 
+    
+    // ดึงเนื้อหาลง Quill Editor แบบปลอดภัย
+    if(typeof newsEditor !== 'undefined' && newsEditor) {
+        newsEditor.root.innerHTML = n.content || ''; 
+    }
+    
+    // 2. ป้องกันปัญหาเรื่องวันที่ หาก Database ส่งเวลาพ่วงมาด้วย
+    f.elements['date'].value = n.date ? n.date.split('T')[0] : ''; 
+    f.elements['end_date'].value = n.end_date ? n.end_date.split('T')[0] : ''; 
+    
+    f.elements['image'].value = n.image || ''; 
+    if(f.elements['link']) f.elements['link'].value = n.link || '';
+    f.elements['showOnHome'].checked = n.showOnHome;
+    
+    // เปิดหน้าต่าง Modal
+    document.getElementById('news-modal-title').innerText = 'แก้ไขข่าวสาร'; 
+    document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); 
+    document.getElementById('add-news-modal').classList.remove('hidden');
+}
 
         function openEditFooterModal() {
             document.getElementById('conf-site-name').value = siteConfig.siteName || '';
